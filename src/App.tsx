@@ -123,6 +123,14 @@ export default function App() {
     }
   };
 
+  const handleLogout = () => {
+    StorageManager.setCurrentUser(null);
+    setCurrentUser(null);
+    setCart({ items: [], subtotal: 0, taxes: 0, shipping: 0, total: 0 });
+    toast.success('Sesión cerrada correctamente');
+    setCurrentPage('home');
+  };
+
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
     if (user.role === 'client') {
@@ -289,7 +297,7 @@ export default function App() {
         );
       case 'contact':
         return (
-          <ContactPage onNavigate={handleNavigation} />
+          <ContactPage />
         );
       case 'admin':
         return (
@@ -315,10 +323,13 @@ export default function App() {
       <Header
         cartItemsCount={cartItemsCount}
         isAuthenticated={!!currentUser}
+        userName={currentUser?.name || 'Usuario'}
         userRole={currentUser?.role}
         onCartClick={() => handleNavigation('cart')}
         onAuthClick={handleAuth}
+        onLogout={handleLogout}
         onMenuItemClick={handleNavigation}
+        onSearchSubmit={(query) => handleNavigation(`search:${query}`)}
       />
       
       <main className="flex-1">
