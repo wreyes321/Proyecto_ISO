@@ -12,6 +12,7 @@ import { AuthPage } from './components/AuthPage';
 import { AboutPage } from './components/AboutPage';
 import { ContactPage } from './components/ContactPage';
 import { AdminPage } from './components/AdminPage';
+import { MyOrdersPage } from './components/MyOrdersPage';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner';
 import type { User, Cart } from './components/data/mockData';
@@ -22,7 +23,7 @@ import {
   WishlistService
 } from './lib/supabaseService';
 
-type Page = 'home' | 'catalog' | 'collections' | 'product' | 'cart' | 'checkout' | 'auth' | 'admin' | 'about' | 'contact' | 'wishlist';
+type Page = 'home' | 'catalog' | 'collections' | 'product' | 'cart' | 'checkout' | 'auth' | 'admin' | 'about' | 'contact' | 'wishlist' | 'my-orders';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -110,6 +111,14 @@ export default function App() {
         break;
       case 'contact':
         setCurrentPage('contact');
+        break;
+      case 'my-orders':
+        if (!currentUser) {
+          toast.error('Debes iniciar sesión para ver tus pedidos');
+          setCurrentPage('auth');
+        } else {
+          setCurrentPage('my-orders');
+        }
         break;
       case 'wishlist':
         if (!currentUser) {
@@ -265,6 +274,7 @@ const handleAuth = async () => {
             onToggleWishlist={handleToggleWishlist}
             userWishlist={userWishlist}
             isAuthenticated={!!currentUser}
+            userId={currentUser?.id}
           />
         ) : (
           <div className="container mx-auto px-4 py-8">
@@ -314,6 +324,13 @@ const handleAuth = async () => {
         return (
           <ContactPage />
         );
+      case 'my-orders':
+        return currentUser ? (
+          <MyOrdersPage
+            onNavigate={handleNavigation}
+            userId={currentUser.id}
+          />
+        ) : null;
       case 'wishlist':
         return (
           <div className="container mx-auto px-4 py-8">

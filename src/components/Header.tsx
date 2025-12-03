@@ -189,7 +189,7 @@ export function Header({
                   
                   {userRole === 'client' && (
                     <>
-                      <DropdownMenuItem onClick={() => handleMenuClick('orders')}>
+                      <DropdownMenuItem onClick={() => handleMenuClick('my-orders')}>
                         <Package className="mr-2 h-4 w-4" />
                         Mis Pedidos
                       </DropdownMenuItem>

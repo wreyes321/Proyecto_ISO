@@ -19,11 +19,15 @@ export interface Product {
 
 export interface Review {
   id: string;
-  userName: string;
+  userId: string;
+  userName?: string;
+  productId: string;
+  orderId: string;
   rating: number;
-  comment: string;
-  date: string;
-  verified: boolean;
+  comment: string | null;
+  createdAt: string;
+  updatedAt?: string;
+  verified?: boolean;
 }
 
 export interface CartItem {
@@ -121,10 +125,13 @@ export const mockProducts: Product[] = [
     reviews: [
       {
         id: '1',
+        userId: 'user-1',
         userName: 'María García',
+        productId: '1',
+        orderId: 'order-1',
         rating: 5,
         comment: 'Hermoso anillo, la calidad es excepcional. Muy recomendado.',
-        date: '2024-12-15',
+        createdAt: '2024-12-15',
         verified: true
       }
     ],

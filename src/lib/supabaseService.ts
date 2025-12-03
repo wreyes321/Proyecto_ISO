@@ -1041,3 +1041,222 @@ export class SettingsService {
     };
   }
 }
+
+// REVIEWS SERVICE
+
+export class ReviewsService {
+  // Crea una nueva reseña
+  static async createReview(reviewData: {
+    userId: string;
+    productId: string;
+    orderId: string;
+    rating: number;
+    comment?: string;
+  }): Promise<{ review: any | null; error: string | null }> {
+    try {
+      // Verificar que el usuario haya comprado el producto
+      const { data: orderItems } = await supabase
+        .from('order_items')
+        .select('*, orders!inner(*)')
+        .eq('order_id', reviewData.orderId)
+        .eq('product_id', reviewData.productId)
+        .eq('orders.user_id', reviewData.userId)
+        .in('orders.status', ['completed', 'shipped'])
+        .single();
+
+      if (!orderItems) {
+        return { review: null, error: 'Solo puedes calificar productos que has comprado' };
+      }
+
+      // Verificar que no haya una reseña existente
+      const { data: existingReview } = await supabase
+        .from('reviews')
+        .select('id')
+        .eq('user_id', reviewData.userId)
+        .eq('product_id', reviewData.productId)
+        .eq('order_id', reviewData.orderId)
+        .single();
+
+      if (existingReview) {
+        return { review: null, error: 'Ya has calificado este producto' };
+      }
+
+      // Crear la reseña
+      const { data: review, error } = await (supabase as any)
+        .from('reviews')
+        .insert({
+          user_id: reviewData.userId,
+          product_id: reviewData.productId,
+          order_id: reviewData.orderId,
+          rating: reviewData.rating,
+          comment: reviewData.comment || null
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error al crear reseña:', error);
+        return { review: null, error: handleSupabaseError(error) };
+      }
+
+      return { review, error: null };
+    } catch (error: any) {
+      console.error('Error en createReview:', error);
+      return { review: null, error: handleSupabaseError(error) };
+    }
+  }
+
+  // Obtiene las reseñas de un producto
+  static async getProductReviews(productId: string): Promise<any[]> {
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select(`
+          *,
+          profiles!reviews_user_id_fkey(name)
+        `)
+        .eq('product_id', productId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error al obtener reseñas:', error);
+        return [];
+      }
+
+      // Mapear los datos al formato esperado por el frontend
+      const reviews = (data || []).map((review: any) => ({
+        id: review.id,
+        userId: review.user_id,
+        userName: review.profiles?.name || 'Usuario',
+        productId: review.product_id,
+        orderId: review.order_id,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.created_at,
+        updatedAt: review.updated_at,
+        verified: true // Las reseñas de pedidos completados son verificadas
+      }));
+
+      return reviews;
+    } catch (error) {
+      console.error('Error en getProductReviews:', error);
+      return [];
+    }
+  }
+
+  // Verifica si un usuario puede calificar un producto
+  static async canUserReviewProduct(
+    userId: string,
+    productId: string,
+    orderId: string
+  ): Promise<boolean> {
+    try {
+      // Verificar que el pedido existe y está completado
+      const { data: order } = (await supabase
+        .from('orders')
+        .select('status')
+        .eq('id', orderId)
+        .eq('user_id', userId)
+        .single()) as { data: any; error: any };
+
+      if (!order || !['completed', 'shipped'].includes(order.status)) {
+        return false;
+      }
+
+      // Verificar que el producto está en el pedido
+      const { data: orderItem } = await supabase
+        .from('order_items')
+        .select('id')
+        .eq('order_id', orderId)
+        .eq('product_id', productId)
+        .single();
+
+      if (!orderItem) {
+        return false;
+      }
+
+      // Verificar que no haya una reseña existente
+      const { data: existingReview } = await supabase
+        .from('reviews')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('product_id', productId)
+        .eq('order_id', orderId)
+        .single();
+
+      return !existingReview;
+    } catch (error) {
+      console.error('Error en canUserReviewProduct:', error);
+      return false;
+    }
+  }
+
+  // Actualiza una reseña existente
+  static async updateReview(
+    reviewId: string,
+    userId: string,
+    updates: { rating?: number; comment?: string }
+  ): Promise<{ error: string | null }> {
+    try {
+      const { error } = await (supabase as any)
+        .from('reviews')
+        .update(updates)
+        .eq('id', reviewId)
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error al actualizar reseña:', error);
+        return { error: handleSupabaseError(error) };
+      }
+
+      return { error: null };
+    } catch (error: any) {
+      console.error('Error en updateReview:', error);
+      return { error: handleSupabaseError(error) };
+    }
+  }
+
+  // Elimina una reseña
+  static async deleteReview(reviewId: string, userId: string): Promise<{ error: string | null }> {
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .delete()
+        .eq('id', reviewId)
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error al eliminar reseña:', error);
+        return { error: handleSupabaseError(error) };
+      }
+
+      return { error: null };
+    } catch (error: any) {
+      console.error('Error en deleteReview:', error);
+      return { error: handleSupabaseError(error) };
+    }
+  }
+
+  // Obtiene el rating promedio de un producto
+  static async getProductRating(productId: string): Promise<{ average: number; count: number }> {
+    try {
+      const { data, error } = (await supabase
+        .from('product_ratings')
+        .select('*')
+        .eq('product_id', productId)
+        .single()) as { data: any; error: any };
+
+      if (error || !data) {
+        return { average: 0, count: 0 };
+      }
+
+      return {
+        average: parseFloat(data.average_rating) || 0,
+        count: parseInt(data.review_count) || 0
+      };
+    } catch (error) {
+      console.error('Error en getProductRating:', error);
+      return { average: 0, count: 0 };
+    }
+  }
+}
