@@ -622,20 +622,28 @@ export function AdminPage({ onNavigate, currentUser }: AdminPageProps) {
                         Imágenes del Producto
                       </Label>
                       <p className="text-xs text-gray-500 mb-2">
-                        Añade las rutas de las imágenes (una por línea)
+                        Añade las URLs de las imágenes separadas por punto y coma (;)
                       </p>
                       <Textarea
-                        value={newProduct.images.join('\n')}
-                        onChange={(e) => setNewProduct(prev => ({
-                          ...prev,
-                          images: e.target.value.split('\n')
-                        }))}
-                        placeholder="/images/products/producto-1.jpg&#10;/images/products/producto-2.jpg"
+                        value={newProduct.images.join('; ')}
+                        onChange={(e) => {
+                          const input = e.target.value;
+                          // Split by semicolon or newline, then filter empty strings
+                          const images = input
+                            .split(/[;\n]/)
+                            .map(img => img.trim())
+                            .filter(img => img);
+                          setNewProduct(prev => ({
+                            ...prev,
+                            images: images.length > 0 ? images : ['']
+                          }));
+                        }}
+                        placeholder="https://ejemplo.com/imagen1.jpg; https://ejemplo.com/imagen2.jpg"
                         rows={4}
                         className="mt-1 font-mono text-xs"
                       />
                       <p className="text-xs text-gray-400 mt-1">
-                        Ejemplo: /images/products/tu-imagen.jpg
+                        Ejemplo: https://imagen1.jpg; https://imagen2.jpg; https://imagen3.jpg
                       </p>
                     </div>
 
@@ -729,12 +737,23 @@ export function AdminPage({ onNavigate, currentUser }: AdminPageProps) {
                 <div className="space-y-6">
                   <div>
                     <Label className="text-sm font-semibold text-gray-700">Imágenes</Label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      URLs separadas por punto y coma (;)
+                    </p>
                     <Textarea
-                      value={selectedProduct.images.join('\n')}
-                      onChange={(e) => setSelectedProduct(prev => prev ? ({
-                        ...prev,
-                        images: e.target.value.split('\n').filter(s => s.trim())
-                      }) : null)}
+                      value={selectedProduct.images.join('; ')}
+                      onChange={(e) => {
+                        const input = e.target.value;
+                        const images = input
+                          .split(/[;\n]/)
+                          .map(img => img.trim())
+                          .filter(img => img);
+                        setSelectedProduct(prev => prev ? ({
+                          ...prev,
+                          images: images.length > 0 ? images : ['']
+                        }) : null);
+                      }}
+                      placeholder="https://imagen1.jpg; https://imagen2.jpg"
                       rows={4}
                       className="mt-1 font-mono text-xs"
                     />
