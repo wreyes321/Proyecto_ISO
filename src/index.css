@@ -3,15 +3,15 @@
 /* Paleta de colores personalizada para joyería de lujo */
 :root {
   /* Colores principales */
-  --primary: 220 38% 20%; /* Azul marino elegante */
+  --primary: 220 38% 20%; 
   --primary-foreground: 0 0% 98%;
   
   /* Colores secundarios */
-  --secondary: 0 0% 96%; /* Gris muy claro */
+  --secondary: 0 0% 96%; 
   --secondary-foreground: 220 38% 20%;
   
   /* Colores de acento */
-  --accent: 45 93% 47%; /* Dorado elegante */
+  --accent: 45 93% 47%; 
   --accent-foreground: 0 0% 98%;
   
   /* Colores de fondo */
@@ -101,7 +101,7 @@ body {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 }
 
-/* Efectos de hover mejorados */
+/* Efectos de hover */
 .hover-lift {
   @apply transition-transform duration-300 hover:scale-105;
 }
@@ -110,7 +110,7 @@ body {
   @apply transition-shadow duration-300 hover:shadow-2xl;
 }
 
-/* Animaciones personalizadas */
+/* Animaciones */
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
@@ -132,7 +132,7 @@ body {
   animation: shimmer 2s infinite;
 }
 
-/* Mejoras para texto */
+/* texto */
 .text-gradient {
   background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
   -webkit-background-clip: text;
@@ -140,7 +140,7 @@ body {
   background-clip: text;
 }
 
-/* Scrollbar personalizado */
+/* Scrollbar  */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -156,4 +156,67 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+
+[data-sonner-toast] {
+  opacity: 1 !important;
+  background-color: hsl(var(--background)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+[data-sonner-toast][data-type="success"] {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border-color: hsl(var(--primary)) !important;
+}
+
+[data-sonner-toast][data-type="error"] {
+  background-color: hsl(var(--destructive)) !important;
+  color: hsl(var(--destructive-foreground)) !important;
+  border-color: hsl(var(--destructive)) !important;
+}
+
+[data-sonner-toast][data-type="warning"] {
+  background-color: hsl(var(--warning)) !important;
+  color: hsl(var(--warning-foreground)) !important;
+  border-color: hsl(var(--warning)) !important;
+}
+
+[data-sonner-toast][data-type="info"] {
+  background-color: hsl(142 76% 36%) !important;
+  color: white !important;
+  border-color: hsl(142 76% 30%) !important;
+}
+
+[data-radix-dialog-overlay] {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-radix-dialog-content],
+[role="dialog"] {
+  background-color: hsl(var(--background)) !important;
+  opacity: 1 !important;
+}
+
+[data-radix-popover-content],
+[role="menu"],
+[role="listbox"] {
+  background-color: hsl(var(--popover)) !important;
+  opacity: 1 !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+.select-content,
+.dropdown-content {
+  background-color: hsl(var(--popover)) !important;
+  opacity: 1 !important;
+}
+
+.bg-background {
+  opacity: 1 !important;
+}
+
+.bg-popover {
+  opacity: 1 !important;
 }

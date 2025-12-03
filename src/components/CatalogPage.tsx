@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Filter, Grid3X3, List, SlidersHorizontal, X } from 'lucide-react';
+import { useState, useEffect} from 'react';
+import { Filter, Grid3X3, List, SlidersHorizontal} from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -8,7 +8,8 @@ import { Slider } from './ui/slider';
 import { Badge } from './ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { ProductCard } from './ProductCard';
-import { type Product, StorageManager } from './data/mockData';
+import { type Product } from './data/mockData';
+import { ProductsService } from '../lib/supabaseService';
 
 interface CatalogPageProps {
   searchQuery?: string;
@@ -17,6 +18,7 @@ interface CatalogPageProps {
   onAddToCart?: (productId: string) => void;
   onToggleWishlist?: (productId: string) => void;
   userWishlist?: string[];
+  wishlistOnly?: boolean;
 }
 
 interface FilterState {
@@ -26,13 +28,14 @@ interface FilterState {
   onSale: boolean;
 }
 
-export function CatalogPage({ 
+export function CatalogPage({
   searchQuery = '',
   categoryFilter = '',
-  onNavigate, 
-  onAddToCart, 
+  onNavigate,
+  onAddToCart,
   onToggleWishlist,
-  userWishlist = [] 
+  userWishlist = [],
+  wishlistOnly = false
 }: CatalogPageProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -49,7 +52,6 @@ export function CatalogPage({
     onSale: false
   });
 
-  // Update internal state when props change
   useEffect(() => {
     setSearchInput(searchQuery);
     setSearchTerm(searchQuery);
@@ -64,7 +66,6 @@ export function CatalogPage({
 
   const allCategories = ['Anillos', 'Collares', 'Aretes', 'Pulseras'];
 
-  // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchTerm(searchInput);
@@ -74,14 +75,23 @@ export function CatalogPage({
   }, [searchInput]);
 
   useEffect(() => {
-    const allProducts = StorageManager.getProducts().filter(p => p.status === 'published');
-    setProducts(allProducts);
+    const loadProducts = async () => {
+      const allProducts = await ProductsService.getProducts();
+      setProducts(allProducts);
+    };
+
+    loadProducts();
   }, []);
 
   useEffect(() => {
     let filtered = [...products];
 
-    // Search filter
+    // Wishlist filtro
+    if (wishlistOnly) {
+      filtered = filtered.filter(product => userWishlist.includes(product.id));
+    }
+
+    // Filtro de busqueda
     if (searchTerm.trim()) {
       const search = searchTerm.toLowerCase();
       filtered = filtered.filter(product =>
@@ -91,28 +101,28 @@ export function CatalogPage({
       );
     }
 
-    // Category filter
+    // Filtro de categoria
     if (filters.categories.length > 0) {
       filtered = filtered.filter(product => filters.categories.includes(product.category));
     }
 
-    // Price range filter
+    // Filtro de precio
     filtered = filtered.filter(product => {
       const price = product.salePrice || product.price;
       return price >= filters.priceRange[0] && price <= filters.priceRange[1];
     });
 
-    // Stock filter
+    // Filtro de stock
     if (filters.inStock) {
       filtered = filtered.filter(product => product.stock > 0);
     }
 
-    // Sale filter
+    // Filtro de promocion
     if (filters.onSale) {
       filtered = filtered.filter(product => product.salePrice);
     }
 
-    // Sorting
+    // Orden
     switch (sortBy) {
       case 'price-low':
         filtered.sort((a, b) => (a.salePrice || a.price) - (b.salePrice || b.price));
@@ -129,12 +139,12 @@ export function CatalogPage({
       case 'rating':
         filtered.sort((a, b) => b.rating - a.rating);
         break;
-      default: // featured
+      default:
         filtered.sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0));
     }
 
     setFilteredProducts(filtered);
-  }, [products, searchTerm, filters, sortBy]);
+  }, [products, searchTerm, filters, sortBy, wishlistOnly, userWishlist]);
 
   const handleCategoryChange = (category: string, checked: boolean) => {
     setFilters(prev => ({
@@ -165,7 +175,7 @@ export function CatalogPage({
 
   const FilterContent = () => (
     <div className="space-y-6">
-      {/* Search */}
+      {/* Busqueda */}
       <div>
         <label className="block font-medium mb-2">Buscar</label>
         <Input
@@ -177,7 +187,7 @@ export function CatalogPage({
         />
       </div>
 
-      {/* Categories */}
+      {/* Categorias */}
       <div>
         <label className="block font-medium mb-3">Categorías</label>
         <div className="space-y-2">
@@ -198,7 +208,7 @@ export function CatalogPage({
 
 
 
-      {/* Price Range */}
+      {/* Rango de precio */}
       <div>
         <label className="block font-medium mb-3">
           Precio: ${filters.priceRange[0]} - ${filters.priceRange[1]}
@@ -213,7 +223,7 @@ export function CatalogPage({
         />
       </div>
 
-      {/* Additional Filters */}
+      {/* Filtros adicionales */}
       <div className="space-y-3">
         <div className="flex items-center space-x-2">
           <Checkbox
@@ -233,7 +243,7 @@ export function CatalogPage({
         </div>
       </div>
 
-      {/* Clear Filters */}
+      {/* Limpieza de filtros */}
       {getActiveFiltersCount() > 0 && (
         <Button variant="outline" onClick={clearFilters} className="w-full">
           Limpiar Filtros
@@ -252,10 +262,9 @@ export function CatalogPage({
         </p>
       </div>
 
-      {/* Controls Bar */}
+      {/* Barra de controles */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6 p-4 bg-muted rounded-lg">
         <div className="flex items-center gap-4">
-          {/* Mobile Filter Toggle */}
           <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" size="sm" className="lg:hidden">
@@ -278,7 +287,7 @@ export function CatalogPage({
             </SheetContent>
           </Sheet>
 
-          {/* Results count */}
+          {/* Resultados */}
           <span className="text-sm text-muted-foreground">
             {filteredProducts.length} productos encontrados
           </span>
@@ -300,7 +309,7 @@ export function CatalogPage({
             </SelectContent>
           </Select>
 
-          {/* View Mode */}
+          {/* Modo de vista */}
           <div className="hidden sm:flex items-center gap-1 border rounded-lg p-1">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
@@ -338,7 +347,7 @@ export function CatalogPage({
           </div>
         </aside>
 
-        {/* Products Grid/List */}
+        {/*  Grid */}
         <main className="flex-1">
           {filteredProducts.length === 0 ? (
             <div className="text-center py-16">

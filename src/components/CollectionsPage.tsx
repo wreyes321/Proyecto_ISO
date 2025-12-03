@@ -3,8 +3,9 @@ import { ChevronRight, Star } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
-import { type Product, StorageManager } from './data/mockData';
+import { type Product } from './data/mockData';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { ProductsService } from '../lib/supabaseService';
 
 interface CollectionsPageProps {
   onNavigate?: (page: string, productId?: string) => void;
@@ -22,48 +23,52 @@ export function CollectionsPage({ onNavigate }: CollectionsPageProps) {
   const [categories, setCategories] = useState<CategoryData[]>([]);
 
   useEffect(() => {
-    const products = StorageManager.getProducts().filter(p => p.status === 'published');
-    
-    const categoryMap = new Map<string, Product[]>();
-    products.forEach(product => {
-      if (!categoryMap.has(product.category)) {
-        categoryMap.set(product.category, []);
-      }
-      categoryMap.get(product.category)!.push(product);
-    });
+    const loadProducts = async () => {
+      const products = (await ProductsService.getProducts()).filter(p => p.status === 'published');
 
-    const categoriesData: CategoryData[] = [
-      {
-        name: 'Anillos',
-        description: 'Anillos elegantes para cada ocasión especial',
-        productCount: categoryMap.get('Anillos')?.length || 0,
-        featured: (categoryMap.get('Anillos') || []).slice(0, 3),
-        image: 'https://images.unsplash.com/photo-1638382874453-6f93c3b4b36a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjByaW5ncyUyMGpld2Vscnl8ZW58MXx8fHwxNzU5MTg2Mzc5fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
-      },
-      {
-        name: 'Collares',
-        description: 'Collares sofisticados que realzan tu belleza',
-        productCount: categoryMap.get('Collares')?.length || 0,
-        featured: (categoryMap.get('Collares') || []).slice(0, 3),
-        image: 'https://images.unsplash.com/photo-1733761013921-89d19f4a2194?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlbGVnYW50JTIwbmVja2xhY2UlMjBqZXdlbHJ5fGVufDF8fHx8MTc1OTE3MTQ2M3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
-      },
-      {
-        name: 'Aretes',
-        description: 'Aretes delicados y llamativos para complementar tu estilo',
-        productCount: categoryMap.get('Aretes')?.length || 0,
-        featured: (categoryMap.get('Aretes') || []).slice(0, 3),
-        image: 'https://images.unsplash.com/photo-1671642883395-0ab89c3ac890?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBlYXJyaW5ncyUyMGpld2Vscnl8ZW58MXx8fHwxNzU5MTYzMzg5fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
-      },
-      {
-        name: 'Pulseras',
-        description: 'Pulseras refinadas para adornar tus muñecas',
-        productCount: categoryMap.get('Pulseras')?.length || 0,
-        featured: (categoryMap.get('Pulseras') || []).slice(0, 3),
-        image: 'https://images.unsplash.com/photo-1676301086281-e65f219c7f22?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlbGVnYW50JTIwYnJhY2VsZXQlMjBqZXdlbHJ5fGVufDF8fHx8MTc1OTE4NjM4OHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
-      }
-    ];
+      const categoryMap = new Map<string, Product[]>();
+      products.forEach(product => {
+        if (!categoryMap.has(product.category)) {
+          categoryMap.set(product.category, []);
+        }
+        categoryMap.get(product.category)!.push(product);
+      });
 
-    setCategories(categoriesData);
+      const categoriesData: CategoryData[] = [
+        {
+          name: 'Anillos',
+          description: 'Anillos elegantes para cada ocasión especial',
+          productCount: categoryMap.get('Anillos')?.length || 0,
+          featured: (categoryMap.get('Anillos') || []).slice(0, 3),
+          image: 'https://images.unsplash.com/photo-1638382874453-6f93c3b4b36a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjByaW5ncyUyMGpld2Vscnl8ZW58MXx8fHwxNzU5MTg2Mzc5fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
+        },
+        {
+          name: 'Collares',
+          description: 'Collares sofisticados que realzan tu belleza',
+          productCount: categoryMap.get('Collares')?.length || 0,
+          featured: (categoryMap.get('Collares') || []).slice(0, 3),
+          image: 'https://images.unsplash.com/photo-1733761013921-89d19f4a2194?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlbGVnYW50JTIwbmVja2xhY2UlMjBqZXdlbHJ5fGVufDF8fHx8MTc1OTE3MTQ2M3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
+        },
+        {
+          name: 'Aretes',
+          description: 'Aretes delicados y llamativos para complementar tu estilo',
+          productCount: categoryMap.get('Aretes')?.length || 0,
+          featured: (categoryMap.get('Aretes') || []).slice(0, 3),
+          image: 'https://images.unsplash.com/photo-1671642883395-0ab89c3ac890?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBlYXJyaW5ncyUyMGpld2Vscnl8ZW58MXx8fHwxNzU5MTYzMzg5fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
+        },
+        {
+          name: 'Pulseras',
+          description: 'Pulseras refinadas para adornar tus muñecas',
+          productCount: categoryMap.get('Pulseras')?.length || 0,
+          featured: (categoryMap.get('Pulseras') || []).slice(0, 3),
+          image: 'https://images.unsplash.com/photo-1676301086281-e65f219c7f22?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlbGVnYW50JTIwYnJhY2VsZXQlMjBqZXdlbHJ5fGVufDF8fHx8MTc1OTE4NjM4OHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
+        }
+      ];
+
+      setCategories(categoriesData);
+    };
+
+    loadProducts();
   }, []);
 
   const handleCategoryClick = (categoryName: string) => {
@@ -103,7 +108,7 @@ export function CollectionsPage({ onNavigate }: CollectionsPageProps) {
             <CardContent className="p-6">
               <p className="text-muted-foreground mb-4">{category.description}</p>
               
-              {/* Featured Products Preview */}
+              {/* Productos destacados */}
               {category.featured.length > 0 && (
                 <div className="mb-4">
                   <h4 className="font-medium mb-3">Productos destacados:</h4>
@@ -154,7 +159,7 @@ export function CollectionsPage({ onNavigate }: CollectionsPageProps) {
         ))}
       </div>
 
-      {/* Call to Action */}
+      {/* Llamada a la accion */}
       <div className="text-center bg-muted rounded-lg p-8">
         <h2 className="text-2xl font-serif mb-4">¿No encuentras lo que buscas?</h2>
         <p className="text-muted-foreground mb-6">

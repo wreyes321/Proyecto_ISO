@@ -6,7 +6,6 @@ export interface Product {
   salePrice?: number;
   images: string[];
   category: string;
-  sizes: string[];
   stock: number;
   description: string;
   specs: Record<string, string>;
@@ -29,9 +28,7 @@ export interface Review {
 
 export interface CartItem {
   productId: string;
-  variant: {
-    size?: string;
-  };
+  productTitle?: string; 
   quantity: number;
   unitPrice: number;
 }
@@ -47,6 +44,7 @@ export interface Cart {
 export interface Order {
   id: string;
   userId: string;
+  userName?: string; 
   items: CartItem[];
   subtotal: number;
   taxes: number;
@@ -94,7 +92,6 @@ export interface Settings {
   freeShippingThreshold: number;
 }
 
-// Mock data for products
 export const mockProducts: Product[] = [
   {
     id: '1',
@@ -107,7 +104,6 @@ export const mockProducts: Product[] = [
       'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400'
     ],
     category: 'Anillos',
-    sizes: ['6', '7', '8', '9', '10'],
     stock: 15,
     description: 'Elegante anillo de oro blanco de 18 quilates con diamante solitario de 0.5 quilates. Diseño clásico y atemporal perfecto para cualquier ocasión especial.',
     specs: {
@@ -143,7 +139,6 @@ export const mockProducts: Product[] = [
       'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400'
     ],
     category: 'Collares',
-    sizes: ['40cm', '45cm', '50cm'],
     stock: 8,
     description: 'Collar clásico de perlas cultivadas de agua dulce con cierre de oro amarillo. Perfecto para looks elegantes y sofisticados.',
     specs: {
@@ -169,7 +164,6 @@ export const mockProducts: Product[] = [
       'https://images.unsplash.com/photo-1602751584549-44d0f48236a5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnb2xkJTIwZWFycmluZ3MlMjBkaWFtb25kcyUyMGx1eHVyeXxlbnwxfHx8fDE3NTkxODQ3NzN8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
     ],
     category: 'Aretes',
-    sizes: ['Único'],
     stock: 12,
     description: 'Elegantes aretes tipo botón con diamantes en engaste de oro rosa. Diseño moderno y versátil.',
     specs: {
@@ -194,7 +188,6 @@ export const mockProducts: Product[] = [
       'https://images.unsplash.com/photo-1655707063496-e1c00b3280de?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnb2xkJTIwYnJhY2VsZXQlMjBqZXdlbHJ5JTIwbHV4dXJ5fGVufDF8fHx8MTc1OTA2OTMwM3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
     ],
     category: 'Pulseras',
-    sizes: ['16cm', '18cm', '20cm'],
     stock: 20,
     description: 'Pulsera de cadena de oro amarillo con charms intercambiables. Perfecta para personalizar tu estilo.',
     specs: {
@@ -219,7 +212,6 @@ export const mockProducts: Product[] = [
       'https://images.unsplash.com/photo-1589674717843-f29fb2b722ca?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlbWVyYWxkJTIwcmluZyUyMHZpbnRhZ2UlMjBqZXdlbHJ5fGVufDF8fHx8MTc1OTE4NDc3OXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
     ],
     category: 'Anillos',
-    sizes: ['6', '7', '8', '9'],
     stock: 5,
     description: 'Anillo vintage con esmeralda natural de Colombia y detalles en oro amarillo. Pieza única de colección.',
     specs: {
@@ -245,7 +237,6 @@ export const mockProducts: Product[] = [
       'https://images.unsplash.com/photo-1679973296637-1411c1d25c7e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaWx2ZXIlMjBjaG9rZXIlMjBuZWNrbGFjZSUyMG1vZGVybnxlbnwxfHx8fDE3NTkxODQ3ODJ8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
     ],
     category: 'Collares',
-    sizes: ['35cm', '38cm'],
     stock: 25,
     description: 'Gargantilla moderna de plata esterlina con acabado pulido. Perfecta para uso diario.',
     specs: {
@@ -263,7 +254,6 @@ export const mockProducts: Product[] = [
   }
 ];
 
-// Mock orders data  
 export const mockOrders: Order[] = [
   {
     id: 'order_001',
@@ -271,7 +261,6 @@ export const mockOrders: Order[] = [
     items: [
       {
         productId: '1',
-        variant: { size: '7' },
         quantity: 1,
         unitPrice: 299.99
       }
@@ -298,13 +287,11 @@ export const mockOrders: Order[] = [
     items: [
       {
         productId: '2',
-        variant: { size: '40cm' },
         quantity: 1,
         unitPrice: 159.99
       },
       {
         productId: '3',
-        variant: { size: 'M' },
         quantity: 2,
         unitPrice: 89.99
       }
@@ -331,7 +318,6 @@ export const mockOrders: Order[] = [
     items: [
       {
         productId: '5',
-        variant: { size: '7' },
         quantity: 1,
         unitPrice: 1850.00
       }
@@ -355,7 +341,7 @@ export const STORAGE_KEYS = {
   CURRENT_USER: 'rg_current_user'
 };
 
-// Utility functions for localStorage management
+// localStorage 
 export class StorageManager {
   static getProducts(): Product[] {
     const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);

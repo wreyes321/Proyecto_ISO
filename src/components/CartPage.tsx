@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { StorageManager, type Cart, type Product } from './data/mockData';
+import { type Cart, type Product } from './data/mockData';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Input } from './ui/input';
 import { Separator } from './ui/separator';
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { CartService, ProductsService, SettingsService } from '../lib/supabaseService';
 
 interface CartPageProps {
   cart: Cart;
@@ -17,11 +17,18 @@ interface CartPageProps {
 
 export function CartPage({ cart, onNavigate, onUpdateCart, isAuthenticated, userId }: CartPageProps) {
   const [products, setProducts] = useState<Product[]>([]);
-  const [promoCode, setPromoCode] = useState('');
+  const [settings, setSettings] = useState({ currency: 'USD', freeShippingThreshold: 150 });
 
   useEffect(() => {
-    const allProducts = StorageManager.getProducts();
-    setProducts(allProducts);
+    const loadData = async () => {
+      const allProducts = await ProductsService.getProducts();
+      setProducts(allProducts);
+
+      const appSettings = await SettingsService.getSettings();
+      setSettings(appSettings);
+    };
+
+    loadData();
   }, []);
 
   if (!isAuthenticated) {
@@ -41,8 +48,8 @@ export function CartPage({ cart, onNavigate, onUpdateCart, isAuthenticated, user
     );
   }
 
-  const updateQuantity = (productId: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
+  const updateQuantity = async (productId: string, newQuantity: number) => {
+    if (newQuantity < 1 || !userId) return;
 
     const product = products.find(p => p.id === productId);
     if (!product) return;
@@ -52,65 +59,41 @@ export function CartPage({ cart, onNavigate, onUpdateCart, isAuthenticated, user
       return;
     }
 
-    const newCart = { ...cart };
-    const itemIndex = newCart.items.findIndex(item => item.productId === productId);
-    
-    if (itemIndex >= 0) {
-      newCart.items[itemIndex].quantity = newQuantity;
-      
-      // Recalculate totals
-      recalculateCart(newCart);
-      onUpdateCart(newCart);
-      
-      if (userId) {
-        StorageManager.setCart(userId, newCart);
-      }
+    const { error } = await CartService.updateCartItemQuantity(
+      userId,
+      productId,
+      newQuantity
+    );
+
+    if (error) {
+      toast.error(error);
+      return;
     }
+
+    // Recargar carrito
+    const updatedCart = await CartService.getCart(userId);
+    onUpdateCart(updatedCart);
   };
 
-  const removeItem = (productId: string) => {
-    const newCart = { ...cart };
-    newCart.items = newCart.items.filter(item => item.productId !== productId);
-    
-    recalculateCart(newCart);
-    onUpdateCart(newCart);
-    
-    if (userId) {
-      StorageManager.setCart(userId, newCart);
+  const removeItem = async (productId: string) => {
+    if (!userId) return;
+
+    const { error } = await CartService.updateCartItemQuantity(
+      userId,
+      productId,
+      0 
+    );
+
+    if (error) {
+      toast.error(error);
+      return;
     }
-    
+
+    // Recargar carrito
+    const updatedCart = await CartService.getCart(userId);
+    onUpdateCart(updatedCart);
+
     toast.success('Producto eliminado del carrito');
-  };
-
-  const recalculateCart = (cartToUpdate: Cart) => {
-    const settings = StorageManager.getSettings();
-    
-    cartToUpdate.subtotal = cartToUpdate.items.reduce((sum, item) => {
-      return sum + (item.quantity * item.unitPrice);
-    }, 0);
-    
-    cartToUpdate.taxes = cartToUpdate.subtotal * settings.taxRate;
-    cartToUpdate.shipping = cartToUpdate.subtotal >= settings.freeShippingThreshold ? 0 : settings.shippingCost;
-    cartToUpdate.total = cartToUpdate.subtotal + cartToUpdate.taxes + cartToUpdate.shipping;
-  };
-
-  const applyPromoCode = () => {
-    // Simple promo code simulation
-    if (promoCode.toLowerCase() === 'welcome10') {
-      const newCart = { ...cart };
-      newCart.subtotal = newCart.subtotal * 0.9; // 10% discount
-      recalculateCart(newCart);
-      onUpdateCart(newCart);
-      
-      if (userId) {
-        StorageManager.setCart(userId, newCart);
-      }
-      
-      toast.success('Código promocional aplicado: 10% de descuento');
-      setPromoCode('');
-    } else if (promoCode) {
-      toast.error('Código promocional no válido');
-    }
   };
 
   const proceedToCheckout = () => {
@@ -119,7 +102,7 @@ export function CartPage({ cart, onNavigate, onUpdateCart, isAuthenticated, user
       return;
     }
 
-    // Check stock availability
+    // Revisar disponibilidad de stock
     for (const item of cart.items) {
       const product = products.find(p => p.id === item.productId);
       if (!product || product.stock < item.quantity) {
@@ -128,12 +111,9 @@ export function CartPage({ cart, onNavigate, onUpdateCart, isAuthenticated, user
       }
     }
 
-    // For now, simulate checkout
-    toast.success('Redirigiendo al checkout...');
-    // onNavigate('checkout');
+    onNavigate('checkout');
   };
 
-  const settings = StorageManager.getSettings();
   const currencySymbol = settings.currency === 'USD' ? '$' : '€';
 
   return (
@@ -159,14 +139,14 @@ export function CartPage({ cart, onNavigate, onUpdateCart, isAuthenticated, user
         </div>
       ) : (
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
+          {/* Carrito */}
           <div className="lg:col-span-2 space-y-4">
             {cart.items.map(item => {
               const product = products.find(p => p.id === item.productId);
               if (!product) return null;
 
               return (
-                <Card key={`${item.productId}-${item.variant.size}`}>
+                <Card key={item.productId}>
                   <CardContent className="p-6">
                     <div className="flex gap-4">
                       <div className="w-20 h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
@@ -176,18 +156,13 @@ export function CartPage({ cart, onNavigate, onUpdateCart, isAuthenticated, user
                           className="w-full h-full object-cover"
                         />
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium truncate">{product.title}</h3>
-                        {item.variant.size && (
-                          <p className="text-sm text-muted-foreground">
-                            Talla: {item.variant.size}
-                          </p>
-                        )}
                         <p className="text-sm text-muted-foreground">
                           {currencySymbol}{item.unitPrice} c/u
                         </p>
-                        
+
                         <div className="flex items-center justify-between mt-4">
                           <div className="flex items-center gap-2">
                             <Button
@@ -210,7 +185,7 @@ export function CartPage({ cart, onNavigate, onUpdateCart, isAuthenticated, user
                               <Plus className="h-3 w-3" />
                             </Button>
                           </div>
-                          
+
                           <div className="flex items-center gap-4">
                             <span className="font-medium">
                               {currencySymbol}{(item.quantity * item.unitPrice).toFixed(2)}
@@ -233,7 +208,7 @@ export function CartPage({ cart, onNavigate, onUpdateCart, isAuthenticated, user
             })}
           </div>
 
-          {/* Order Summary */}
+          {/* Resumen de orden */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -277,28 +252,6 @@ export function CartPage({ cart, onNavigate, onUpdateCart, isAuthenticated, user
                     Añade {currencySymbol}{(settings.freeShippingThreshold - cart.subtotal).toFixed(2)} más para envío gratuito
                   </p>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Promo Code */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Código promocional</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Ingresa tu código"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                  />
-                  <Button variant="outline" onClick={applyPromoCode}>
-                    Aplicar
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Prueba: WELCOME10
-                </p>
               </CardContent>
             </Card>
           </div>

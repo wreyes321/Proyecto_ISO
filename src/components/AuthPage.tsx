@@ -4,8 +4,8 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { StorageManager } from './data/mockData';
 import { toast } from 'sonner';
+import { AuthService } from '../lib/supabaseService';
 
 interface AuthPageProps {
   onNavigate: (destination: string) => void;
@@ -14,6 +14,7 @@ interface AuthPageProps {
 
 export function AuthPage({ onNavigate, onAuthSuccess }: AuthPageProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: ''
@@ -28,90 +29,55 @@ export function AuthPage({ onNavigate, onAuthSuccess }: AuthPageProps) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    try {
-      // Simulate loading time
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    const { user, error } = await AuthService.signIn(loginForm.email, loginForm.password);
 
-      const users = StorageManager.getUsers();
-      const user = users.find(u => 
-        u.email === loginForm.email && u.password === loginForm.password
-      );
+    setIsLoading(false);
 
-      if (user) {
-        StorageManager.setCurrentUser(user);
-        onAuthSuccess(user);
-        toast.success(`¡Bienvenido${user.role === 'admin' ? ' administrador' : ''}, ${user.name}!`);
-        onNavigate(user.role === 'admin' ? 'admin' : 'home');
-      } else {
-        toast.error('Credenciales incorrectas');
-      }
-    } catch (error) {
-      toast.error('Error al iniciar sesión');
-    } finally {
-      setIsLoading(false);
+    if (error) {
+      setError(error);
+      toast.error(error);
+      return;
+    }
+
+    if (user) {
+      onAuthSuccess(user);
+      toast.success(`¡Bienvenido ${user.name}!`);
+      onNavigate(user.role === 'admin' ? 'admin' : 'home');
     }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    try {
-      if (registerForm.password !== registerForm.confirmPassword) {
-        toast.error('Las contraseñas no coinciden');
-        return;
-      }
-
-      if (registerForm.password.length < 6) {
-        toast.error('La contraseña debe tener al menos 6 caracteres');
-        return;
-      }
-
-      // Simulate loading time
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const users = StorageManager.getUsers();
-      const existingUser = users.find(u => u.email === registerForm.email);
-
-      if (existingUser) {
-        toast.error('Ya existe una cuenta con este email');
-        return;
-      }
-
-      const newUser = {
-        id: `user_${Date.now()}`,
-        name: registerForm.name,
-        email: registerForm.email,
-        password: registerForm.password,
-        role: 'client' as const,
-        wishlist: [],
-        orders: []
-      };
-
-      users.push(newUser);
-      StorageManager.setUsers(users);
-      StorageManager.setCurrentUser(newUser);
-      
-      onAuthSuccess(newUser);
-      toast.success(`¡Cuenta creada exitosamente! Bienvenido, ${newUser.name}`);
-      onNavigate('home');
-    } catch (error) {
-      toast.error('Error al crear la cuenta');
-    } finally {
+    if (registerForm.password !== registerForm.confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      toast.error('Las contraseñas no coinciden');
       setIsLoading(false);
+      return;
     }
-  };
 
-  const handleDemoLogin = (userType: 'client' | 'admin') => {
-    const users = StorageManager.getUsers();
-    const demoUser = users.find(u => u.role === userType);
-    
-    if (demoUser) {
-      StorageManager.setCurrentUser(demoUser);
-      onAuthSuccess(demoUser);
-      toast.success(`Conectado como ${userType === 'admin' ? 'administrador' : 'cliente'} de prueba`);
-      onNavigate(userType === 'admin' ? 'admin' : 'home');
+    const { user, error } = await AuthService.signUp(
+      registerForm.email,
+      registerForm.password,
+      registerForm.name
+    );
+
+    setIsLoading(false);
+
+    if (error) {
+      setError(error);
+      toast.error(error);
+      return;
+    }
+
+    if (user) {
+      onAuthSuccess(user);
+      toast.success('¡Cuenta creada exitosamente!');
+      onNavigate('home');
     }
   };
 
@@ -168,36 +134,11 @@ export function AuthPage({ onNavigate, onAuthSuccess }: AuthPageProps) {
                   </Button>
                 </form>
 
-                <div className="mt-6 space-y-3">
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
-                    </div>
-                   
-                   
-                   
-                   
-                   
+                {error && (
+                  <div className="mt-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+                    {error}
                   </div>
-                  <div className="space-y-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => handleDemoLogin('client')}
-                    >
-                      Demo Cliente
-                    </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => handleDemoLogin('admin')}
-                    >
-                      Demo Administrador
-                    </Button>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -260,6 +201,12 @@ export function AuthPage({ onNavigate, onAuthSuccess }: AuthPageProps) {
                     {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
                   </Button>
                 </form>
+
+                {error && (
+                  <div className="mt-4 p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+                    {error}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

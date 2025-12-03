@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { StorageManager, type Product } from './data/mockData';
+import { type Product, type Settings } from './data/mockData';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Heart, Star, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { ProductsService, SettingsService } from '../lib/supabaseService';
 
 interface ProductDetailPageProps {
   productId: string;
   onNavigate: (destination: string) => void;
-  onAddToCart: (productId: string, size?: string) => void;
+  onAddToCart: (productId: string) => void;
   onToggleWishlist: (productId: string) => void;
   userWishlist: string[];
   isAuthenticated: boolean;
@@ -26,16 +26,20 @@ export function ProductDetailPage({
 }: ProductDetailPageProps) {
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedSize, setSelectedSize] = useState('');
-  const [quantity, setQuantity] = useState(1);
+  const [settings, setSettings] = useState<Settings>({ currency: 'USD', taxRate: 0.08, shippingCost: 12.99, freeShippingThreshold: 150 });
 
   useEffect(() => {
-    const products = StorageManager.getProducts();
-    const foundProduct = products.find(p => p.id === productId);
-    if (foundProduct) {
-      setProduct(foundProduct);
-      setSelectedSize(foundProduct.sizes[0] || '');
-    }
+    const loadData = async () => {
+      const foundProduct = await ProductsService.getProductById(productId);
+      if (foundProduct) {
+        setProduct(foundProduct);
+      }
+
+      const appSettings = await SettingsService.getSettings();
+      setSettings(appSettings);
+    };
+
+    loadData();
   }, [productId]);
 
   if (!product) {
@@ -55,7 +59,6 @@ export function ProductDetailPage({
   const isInWishlist = userWishlist.includes(product.id);
   const currentPrice = product.salePrice || product.price;
   const hasDiscount = !!product.salePrice;
-  const settings = StorageManager.getSettings();
 
   const handleAddToCart = () => {
     if (!isAuthenticated) {
@@ -68,7 +71,7 @@ export function ProductDetailPage({
       return;
     }
 
-    onAddToCart(product.id, selectedSize);
+    onAddToCart(product.id);
   };
 
   const handleToggleWishlist = () => {
@@ -99,7 +102,7 @@ export function ProductDetailPage({
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
-        {/* Images */}
+        {/* Imagenes */}
         <div className="space-y-4">
           <div className="aspect-square overflow-hidden rounded-lg border bg-muted">
             <img
@@ -129,7 +132,7 @@ export function ProductDetailPage({
           )}
         </div>
 
-        {/* Product Info */}
+        {/* Producto */}
         <div className="space-y-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -178,26 +181,7 @@ export function ProductDetailPage({
 
           <p className="text-muted-foreground">{product.description}</p>
 
-          {/* Size Selection */}
-          {product.sizes.length > 1 && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Talla</label>
-              <Select value={selectedSize} onValueChange={setSelectedSize}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecciona una talla" />
-                </SelectTrigger>
-                <SelectContent>
-                  {product.sizes.map(size => (
-                    <SelectItem key={size} value={size}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Actions */}
+          {/* Acciones */}
           <div className="flex gap-3">
             <Button
               onClick={handleAddToCart}
@@ -217,16 +201,16 @@ export function ProductDetailPage({
             </Button>
           </div>
 
-          {/* Stock Info */}
+          {/* Stock */}
           <div className="text-sm text-muted-foreground">
             {product.stock > 0 ? (
-              <span>En stock: {product.stock} unidades disponibles</span>
+              <span>Disponible</span>
             ) : (
               <span>Producto agotado</span>
             )}
           </div>
 
-          {/* Specifications */}
+          {/* Especificaciones */}
           <Card>
             <CardContent className="pt-6">
               <h3 className="mb-4">Especificaciones</h3>

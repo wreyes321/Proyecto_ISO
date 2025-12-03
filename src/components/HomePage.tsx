@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, Shield, Truck, Award, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowRight, Shield, Truck, Award, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import { ProductCard } from './ProductCard';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { type Product, StorageManager } from './data/mockData';
+import { type Product } from './data/mockData';
+import { ProductsService } from '../lib/supabaseService';
 
 interface HomePageProps {
   onNavigate?: (page: string, productId?: string) => void;
@@ -88,9 +89,13 @@ export function HomePage({
   ];
 
   useEffect(() => {
-    const products = StorageManager.getProducts();
-    setFeaturedProducts(products.filter(p => p.isFeatured && p.status === 'published').slice(0, 4));
-    setNewProducts(products.filter(p => p.isNew && p.status === 'published').slice(0, 4));
+    const loadProducts = async () => {
+      const products = await ProductsService.getProducts();
+      setFeaturedProducts(products.filter((p: Product) => p.isFeatured && p.status === 'published').slice(0, 4));
+      setNewProducts(products.filter((p: Product) => p.isNew && p.status === 'published').slice(0, 4));
+    };
+
+    loadProducts();
   }, []);
 
   useEffect(() => {
@@ -110,7 +115,7 @@ export function HomePage({
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
+      {/* Hero */}
       <section className="relative h-[600px] lg:h-[700px] overflow-hidden">
         <div className="absolute inset-0">
           <ImageWithFallback
@@ -140,7 +145,7 @@ export function HomePage({
           </div>
         </div>
 
-        {/* Navigation arrows */}
+        {/* Flechas */}
         <button
           onClick={prevSlide}
           className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full transition-all duration-300 hover:scale-110 backdrop-blur-sm"
@@ -154,7 +159,7 @@ export function HomePage({
           <ChevronRight className="h-6 w-6" />
         </button>
 
-        {/* Dots indicator */}
+        {/* Dots */}
         <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-3">
           {heroSlides.map((_, index) => (
             <button
@@ -168,7 +173,7 @@ export function HomePage({
         </div>
       </section>
 
-      {/* Benefits Section */}
+      {/* Beneficios */}
       <section className="py-20 bg-gradient-secondary">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -185,7 +190,7 @@ export function HomePage({
         </div>
       </section>
 
-      {/* Featured Products */}
+      {/* Productos destacados */}
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
@@ -225,7 +230,7 @@ export function HomePage({
         </div>
       </section>
 
-      {/* Collections */}
+      {/* Collecciones */}
       <section className="py-20 bg-gradient-secondary">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
@@ -264,7 +269,7 @@ export function HomePage({
         </div>
       </section>
 
-      {/* New Arrivals */}
+      {/* Recien llegados */}
       {newProducts.length > 0 && (
         <section className="py-20 bg-white">
           <div className="container mx-auto px-4">

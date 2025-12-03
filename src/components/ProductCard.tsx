@@ -30,7 +30,6 @@ export function ProductCard({
   onToggleWishlist,
   isInWishlist = false 
 }: ProductCardProps) {
-  const [isImageLoading, setIsImageLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const formatPrice = (price: number) => {
@@ -67,13 +66,11 @@ export function ProductCard({
           src={product.images[currentImageIndex] || product.images[0]}
           alt={product.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-          onLoad={() => setIsImageLoading(false)}
         />
         
-        {/* Overlay on hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
-        {/* Quick add to cart button */}
+        
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 translate-y-full group-hover:translate-y-0 transition-all duration-300">
           <Button
             size="sm"
@@ -108,7 +105,7 @@ export function ProductCard({
           )}
         </div>
 
-        {/* Wishlist button */}
+        {/* Wishlist */}
         <Button
           variant="ghost"
           size="sm"
@@ -124,7 +121,7 @@ export function ProductCard({
         </Button>
       </div>
 
-      {/* Product Information */}
+      {/* Informacion del producto */}
       <div className="p-6 bg-gradient-to-b from-white to-gray-50">
         <div 
           className="cursor-pointer"
@@ -158,7 +155,7 @@ export function ProductCard({
             </span>
           </div>
 
-          {/* Price */}
+          {/* Precio */}
           <div className="flex items-center gap-3">
             {product.salePrice ? (
               <>

@@ -1,3 +1,4 @@
+//src/App.tsx
 import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -6,15 +7,22 @@ import { CatalogPage } from './components/CatalogPage';
 import { CollectionsPage } from './components/CollectionsPage';
 import { ProductDetailPage } from './components/ProductDetailPage';
 import { CartPage } from './components/CartPage';
+import { CheckoutPage } from './components/CheckoutPage';
 import { AuthPage } from './components/AuthPage';
 import { AboutPage } from './components/AboutPage';
 import { ContactPage } from './components/ContactPage';
 import { AdminPage } from './components/AdminPage';
-import { StorageManager, type User, type Cart } from './components/data/mockData';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner';
+import type { User, Cart } from './components/data/mockData';
+import {
+  AuthService,
+  CartService,
+  ProductsService,
+  WishlistService
+} from './lib/supabaseService';
 
-type Page = 'home' | 'catalog' | 'collections' | 'product' | 'cart' | 'auth' | 'admin' | 'about' | 'contact';
+type Page = 'home' | 'catalog' | 'collections' | 'product' | 'cart' | 'checkout' | 'auth' | 'admin' | 'about' | 'contact' | 'wishlist';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
@@ -25,17 +33,19 @@ export default function App() {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   // Initialize app data
-  useEffect(() => {
-    // Load current user
-    const user = StorageManager.getCurrentUser();
+ useEffect(() => {
+  const initializeApp = async () => {
+    const user = await AuthService.getCurrentUser();
     setCurrentUser(user);
 
-    // Load cart if user is logged in
     if (user && user.role === 'client') {
-      const userCart = StorageManager.getCart(user.id);
+      const userCart = await CartService.getCart(user.id);
       setCart(userCart);
     }
-  }, []);
+  };
+
+  initializeApp();
+}, []);
 
   const handleNavigation = (destination: string, productId?: string) => {
     if (destination.startsWith('search:')) {
@@ -45,7 +55,6 @@ export default function App() {
       return;
     }
 
-    // Handle category filtering
     if (destination.includes('category=')) {
       const category = destination.split('category=')[1];
       setCategoryFilter(category);
@@ -53,7 +62,6 @@ export default function App() {
       return;
     }
 
-    // Handle catalog with query parameters
     if (destination.startsWith('catalog?')) {
       const urlParams = new URLSearchParams(destination.split('?')[1]);
       const category = urlParams.get('category');
@@ -83,6 +91,14 @@ export default function App() {
       case 'cart':
         setCurrentPage('cart');
         break;
+      case 'checkout':
+        if (!currentUser) {
+          toast.error('Debes iniciar sesión para continuar');
+          setCurrentPage('auth');
+        } else {
+          setCurrentPage('checkout');
+        }
+        break;
       case 'auth':
         setCurrentPage('auth');
         break;
@@ -95,13 +111,24 @@ export default function App() {
       case 'contact':
         setCurrentPage('contact');
         break;
+      case 'wishlist':
+        if (!currentUser) {
+          toast.error('Inicia sesión para ver tu lista de deseos');
+          setCurrentPage('auth');
+        } else {
+          setCurrentPage('wishlist');
+        }
+        break;
+      case 'orders':
+      case 'profile':
+        toast.info(`Página "${destination}" en construcción`);
+        break;
       case 'shipping':
       case 'warranty':
       case 'size-guide':
       case 'care':
       case 'privacy':
       case 'terms':
-        // For now, show a simple message for these pages
         toast.info(`Página "${destination}" en construcción`);
         break;
       default:
@@ -109,116 +136,94 @@ export default function App() {
     }
   };
 
-  const handleAuth = () => {
-    if (currentUser) {
-      // Logout
-      StorageManager.setCurrentUser(null);
-      setCurrentUser(null);
-      setCart({ items: [], subtotal: 0, taxes: 0, shipping: 0, total: 0 });
-      toast.success('Sesión cerrada correctamente');
-      setCurrentPage('home');
-    } else {
-      // Navigate to auth page
-      setCurrentPage('auth');
-    }
-  };
-
-  const handleLogout = () => {
-    StorageManager.setCurrentUser(null);
+const handleAuth = async () => {
+  if (currentUser) {
+    await AuthService.signOut();
     setCurrentUser(null);
     setCart({ items: [], subtotal: 0, taxes: 0, shipping: 0, total: 0 });
     toast.success('Sesión cerrada correctamente');
     setCurrentPage('home');
-  };
+  } else {
+    setCurrentPage('auth');
+  }
+};
 
-  const handleAuthSuccess = (user: User) => {
+  const handleAuthSuccess = async (user: User) => {
     setCurrentUser(user);
     if (user.role === 'client') {
-      const userCart = StorageManager.getCart(user.id);
+      const userCart = await CartService.getCart(user.id);
       setCart(userCart);
     }
   };
 
-  const handleAddToCart = (productId: string, size?: string) => {
-    if (!currentUser || currentUser.role !== 'client') {
-      toast.error('Inicia sesión para añadir productos al carrito');
+  const handleAddToCart = async (productId: string) => {
+  if (!currentUser || currentUser.role !== 'client') {
+    toast.error('Inicia sesión para añadir productos al carrito');
+    return;
+  }
+
+  const product = await ProductsService.getProductById(productId);
+
+  if (!product) {
+    toast.error('Producto no encontrado');
+    return;
+  }
+
+  if (product.stock <= 0) {
+    toast.error('Producto sin stock');
+    return;
+  }
+
+  const price = product.salePrice || product.price;
+
+  const { error } = await CartService.addToCart(
+    currentUser.id,
+    productId,
+    price
+  );
+
+  if (error) {
+    toast.error(error);
+    return;
+  }
+
+  // Recargar carrito
+  const updatedCart = await CartService.getCart(currentUser.id);
+  setCart(updatedCart);
+
+  toast.success(`${product.title} añadido al carrito`);
+};
+
+  const handleToggleWishlist = async (productId: string) => {
+  if (!currentUser || currentUser.role !== 'client') {
+    toast.error('Inicia sesión para gestionar tu lista de deseos');
+    return;
+  }
+
+  const isInWishlist = currentUser.wishlist.includes(productId);
+  
+  if (isInWishlist) {
+    const { error } = await WishlistService.removeFromWishlist(currentUser.id, productId);
+    if (error) {
+      toast.error(error);
       return;
     }
-
-    const products = StorageManager.getProducts();
-    const product = products.find(p => p.id === productId);
-    
-    if (!product) {
-      toast.error('Producto no encontrado');
+    toast.success('Producto eliminado de la lista de deseos');
+  } else {
+    const { error } = await WishlistService.addToWishlist(currentUser.id, productId);
+    if (error) {
+      toast.error(error);
       return;
     }
+    toast.success('Producto añadido a la lista de deseos');
+  }
 
-    if (product.stock <= 0) {
-      toast.error('Producto sin stock');
-      return;
-    }
-
-    // Add to cart logic
-    const selectedSize = size || product.sizes[0];
-    const existingItemIndex = cart.items.findIndex(item => 
-      item.productId === productId && item.variant.size === selectedSize
-    );
-    const price = product.salePrice || product.price;
-    
-    let newCart = { ...cart };
-    
-    if (existingItemIndex >= 0) {
-      if (newCart.items[existingItemIndex].quantity >= product.stock) {
-        toast.error('No hay más stock disponible');
-        return;
-      }
-      newCart.items[existingItemIndex].quantity += 1;
-    } else {
-      newCart.items.push({
-        productId,
-        variant: { size: selectedSize },
-        quantity: 1,
-        unitPrice: price
-      });
-    }
-
-    // Recalculate totals
-    newCart.subtotal = newCart.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-    const settings = StorageManager.getSettings();
-    newCart.taxes = newCart.subtotal * settings.taxRate;
-    newCart.shipping = newCart.subtotal >= settings.freeShippingThreshold ? 0 : settings.shippingCost;
-    newCart.total = newCart.subtotal + newCart.taxes + newCart.shipping;
-
-    setCart(newCart);
-    StorageManager.setCart(currentUser.id, newCart);
-    
-    toast.success(`${product.title} añadido al carrito`);
-  };
-
-  const handleToggleWishlist = (productId: string) => {
-    if (!currentUser || currentUser.role !== 'client') {
-      toast.error('Inicia sesión para gestionar tu lista de deseos');
-      return;
-    }
-
-    const users = StorageManager.getUsers();
-    const userIndex = users.findIndex(u => u.id === currentUser.id);
-    
-    if (userIndex >= 0) {
-      const isInWishlist = users[userIndex].wishlist.includes(productId);
-      
-      if (isInWishlist) {
-        users[userIndex].wishlist = users[userIndex].wishlist.filter(id => id !== productId);
-        toast.success('Producto eliminado de la lista de deseos');
-      } else {
-        users[userIndex].wishlist.push(productId);
-        toast.success('Producto añadido a la lista de deseos');
-      }
-      
-      StorageManager.setUsers(users);
-      setCurrentUser(users[userIndex]);
-    }
-  };
+  // Actualizar usuario actual
+  const updatedUser = await AuthService.getCurrentUser();
+  if (updatedUser) {
+    setCurrentUser(updatedUser);
+  }
+};
 
   const cartItemsCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
   const userWishlist = currentUser?.wishlist || [];
@@ -284,6 +289,16 @@ export default function App() {
             userId={currentUser?.id}
           />
         );
+      case 'checkout':
+        return currentUser ? (
+          <CheckoutPage
+            cart={cart}
+            onNavigate={handleNavigation}
+            onUpdateCart={setCart}
+            userId={currentUser.id}
+            userEmail={currentUser.email}
+          />
+        ) : null;
       case 'auth':
         return (
           <AuthPage
@@ -299,9 +314,24 @@ export default function App() {
         return (
           <ContactPage />
         );
+      case 'wishlist':
+        return (
+          <div className="container mx-auto px-4 py-8">
+            <h1 className="text-3xl font-serif mb-6">Mi Lista de Deseos</h1>
+            <CatalogPage
+              searchQuery=""
+              categoryFilter=""
+              onNavigate={handleNavigation}
+              onAddToCart={handleAddToCart}
+              onToggleWishlist={handleToggleWishlist}
+              userWishlist={userWishlist}
+              wishlistOnly={true}
+            />
+          </div>
+        );
       case 'admin':
         return (
-          <AdminPage 
+          <AdminPage
             onNavigate={handleNavigation}
             currentUser={currentUser}
           />
@@ -327,7 +357,7 @@ export default function App() {
         userRole={currentUser?.role}
         onCartClick={() => handleNavigation('cart')}
         onAuthClick={handleAuth}
-        onLogout={handleLogout}
+        onLogout={handleAuth}
         onMenuItemClick={handleNavigation}
         onSearchSubmit={(query) => handleNavigation(`search:${query}`)}
       />
