@@ -193,7 +193,6 @@ export class AuthService {
         return null;
       }
 
-      // Get wishlist from separate table
       const wishlist = await WishlistService.getWishlist(profileData.id);
 
       const user: User = {
@@ -440,7 +439,6 @@ export class CartService {
    
   static async getCart(userId: string): Promise<Cart> {
     try {
-      // Obtener items del carrito directamente (sin tabla carts)
       const { data: itemsData, error: itemsError } = (await supabase
         .from('cart_items')
         .select('*')
@@ -571,6 +569,88 @@ export class CartService {
   }
 }
 
+// STORAGE SERVICE
+
+export class StorageService {
+  // Subir un comprobante de pago a Supabase Storage
+  static async uploadPaymentProof(
+    userId: string,
+    orderId: string,
+    file: File
+  ): Promise<{ url: string | null; error: string | null }> {
+    try {
+      // Generar nombre único para el archivo
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${userId}/${orderId}/${fileName}`;
+
+      // Subir archivo al bucket
+      const { error: uploadError } = await supabase.storage
+        .from('payment-proofs')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Error al subir comprobante:', uploadError);
+        return { url: null, error: handleSupabaseError(uploadError) };
+      }
+
+      // Obtener URL pública (aunque sea privado, necesitamos la referencia)
+      const { data: urlData } = supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(filePath);
+
+      return { url: urlData.publicUrl, error: null };
+    } catch (error: any) {
+      console.error('Error en uploadPaymentProof:', error);
+      return { url: null, error: handleSupabaseError(error) };
+    }
+  }
+
+  //  URL  para descargar un comprobante privado
+  static async getPaymentProofSignedUrl(
+    filePath: string,
+    expiresIn: number = 3600
+  ): Promise<{ url: string | null; error: string | null }> {
+    try {
+      const { data, error } = await supabase.storage
+        .from('payment-proofs')
+        .createSignedUrl(filePath, expiresIn);
+
+      if (error) {
+        console.error('Error al obtener URL firmada:', error);
+        return { url: null, error: handleSupabaseError(error) };
+      }
+
+      return { url: data.signedUrl, error: null };
+    } catch (error: any) {
+      console.error('Error en getPaymentProofSignedUrl:', error);
+      return { url: null, error: handleSupabaseError(error) };
+    }
+  }
+
+  // Elimina un comprobante de pago
+  static async deletePaymentProof(filePath: string): Promise<{ error: string | null }> {
+    try {
+      const { error } = await supabase.storage
+        .from('payment-proofs')
+        .remove([filePath]);
+
+      if (error) {
+        console.error('Error al eliminar comprobante:', error);
+        return { error: handleSupabaseError(error) };
+      }
+
+      return { error: null };
+    } catch (error: any) {
+      console.error('Error en deletePaymentProof:', error);
+      return { error: handleSupabaseError(error) };
+    }
+  }
+}
+
 // ORDERS SERVICE
 
 export class OrdersService {
@@ -587,6 +667,9 @@ export class OrdersService {
           shipping: orderData.shipping,
           total: orderData.total,
           status: 'pending',
+          payment_method: orderData.paymentMethod || 'cash_on_delivery',
+          delivery_type: orderData.deliveryType || 'home',
+          notes: orderData.notes || null,
           shipping_name: orderData.shippingInfo.name,
           shipping_email: orderData.shippingInfo.email,
           shipping_phone: orderData.shippingInfo.phone,
@@ -594,6 +677,7 @@ export class OrdersService {
           shipping_city: orderData.shippingInfo.city || '',
           shipping_postal_code: orderData.shippingInfo.postalCode || '',
           shipping_country: orderData.shippingInfo.country,
+          payment_proof_url: orderData.paymentProofUrl || null,
         } as any)
         .select()
         .single() as { data: any; error: any };
@@ -711,6 +795,26 @@ export class OrdersService {
     }
   }
 
+  // Actualiza la URL del comprobante de pago de un pedido
+  static async updatePaymentProof(orderId: string, paymentProofUrl: string): Promise<{ error: string | null }> {
+    try {
+      const { error } = await (supabase as any)
+        .from('orders')
+        .update({ payment_proof_url: paymentProofUrl })
+        .eq('id', orderId);
+
+      if (error) {
+        console.error('Error al actualizar comprobante:', error);
+        return { error: handleSupabaseError(error) };
+      }
+
+      return { error: null };
+    } catch (error: any) {
+      console.error('Error en updatePaymentProof:', error);
+      return { error: handleSupabaseError(error) };
+    }
+  }
+
   // Actualiza el estado de un pedido
 
   static async updateOrderStatus(orderId: string, status: Order['status']): Promise<{ error: string | null }> {
@@ -782,10 +886,10 @@ export class OrdersService {
     return {
       id: data.id,
       userId: data.user_id,
-      userName: data.profiles?.name || data.shipping_name, 
+      userName: data.profiles?.name || data.shipping_name,
       items: data.order_items?.map((item: any) => ({
         productId: item.product_id,
-        productTitle: productMap?.get(item.product_id), 
+        productTitle: productMap?.get(item.product_id),
         quantity: item.quantity,
         unitPrice: parseFloat(item.unit_price),
       })) || [],
@@ -793,6 +897,10 @@ export class OrdersService {
       taxes: parseFloat(data.taxes),
       shipping: parseFloat(data.shipping),
       total: parseFloat(data.total),
+      paymentMethod: data.payment_method || 'cash_on_delivery',
+      deliveryType: data.delivery_type || 'home',
+      notes: data.notes || null,
+      paymentProofUrl: data.payment_proof_url || null,
       status: data.status,
       shippingAddress: {
         name: data.shipping_name,
@@ -895,9 +1003,9 @@ export class SettingsService {
 
       return {
         currency: settings.currency || 'USD',
-        taxRate: parseFloat(settings.tax_rate) || 0.08,
-        shippingCost: parseFloat(settings.shipping_cost) || 12.99,
-        freeShippingThreshold: parseFloat(settings.free_shipping_threshold) || 150.00,
+        taxRate: parseFloat(settings.tax_rate) || 0.13,
+        shippingCost: parseFloat(settings.shipping_cost) || 3.50,
+        freeShippingThreshold: parseFloat(settings.free_shipping_threshold) || 25.00,
       };
     } catch (error) {
       console.error('Error al obtener configuraciones:', error);
@@ -923,15 +1031,13 @@ export class SettingsService {
       return { error: handleSupabaseError(error) };
     }
   }
-
-  // Obtiene configuraciones por defecto
    
   private static getDefaultSettings(): Settings {
     return {
       currency: 'USD',
-      taxRate: 0.08,
-      shippingCost: 12.99,
-      freeShippingThreshold: 150.00,
+      taxRate: 0.13,
+      shippingCost: 3.50,
+      freeShippingThreshold: 25.00,
     };
   }
 }

@@ -26,7 +26,7 @@ export function ProductDetailPage({
 }: ProductDetailPageProps) {
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [settings, setSettings] = useState<Settings>({ currency: 'USD', taxRate: 0.08, shippingCost: 12.99, freeShippingThreshold: 150 });
+  const [settings, setSettings] = useState<Settings>({ currency: 'USD', taxRate: 0.13, shippingCost: 3.50, freeShippingThreshold: 25 });
 
   useEffect(() => {
     const loadData = async () => {

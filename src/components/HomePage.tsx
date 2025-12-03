@@ -53,7 +53,7 @@ export function HomePage({
     {
       icon: <Truck className="h-6 w-6" />,
       title: "Envío Seguro",
-      description: "Envío gratuito en pedidos superiores a €500"
+      description: "Envío gratuito en pedidos superiores a $25 USD"
     },
     {
       icon: <Shield className="h-6 w-6" />,
@@ -91,8 +91,20 @@ export function HomePage({
   useEffect(() => {
     const loadProducts = async () => {
       const products = await ProductsService.getProducts();
-      setFeaturedProducts(products.filter((p: Product) => p.isFeatured && p.status === 'published').slice(0, 4));
-      setNewProducts(products.filter((p: Product) => p.isNew && p.status === 'published').slice(0, 4));
+
+      // Filtrar solo productos publicados
+      const publishedProducts = products.filter((p: Product) => p.status === 'published');
+
+      // Productos destacados
+      const shuffled = [...publishedProducts].sort(() => Math.random() - 0.5);
+      setFeaturedProducts(shuffled.slice(0, 4));
+
+      const sortedByDate = [...publishedProducts].sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA; 
+      });
+      setNewProducts(sortedByDate.slice(0, 4));
     };
 
     loadProducts();

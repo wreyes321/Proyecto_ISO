@@ -3,127 +3,46 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Clock, 
-  MessageCircle, 
-  Package, 
-  Shield, 
+import { Card } from './ui/card';
+import {
+  MapPin,
+  Phone,
+  Mail,
   Send,
-  CheckCircle2,
-  HelpCircle
+  CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import emailjs from '@emailjs/browser';
 
 export function ContactPage() {
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
-    subject: '',
-    category: '',
     message: ''
   });
 
   // Información de contacto
   const contactInfo = [
     {
-      icon: MapPin,
-      title: 'Dirección',
-      details: [
-        'Km 94 1/2 carretera Ruta de las Flores',
-        'El Jardín de Celeste, Concepción de Ataco',
-        'El Salvador'
-      ],
-      color: 'bg-blue-50 text-blue-600'
-    },
-    {
       icon: Phone,
-      title: 'Teléfono',
-      details: [
-        '+503 7XXX-XXXX',
-        'WhatsApp disponible',
-        'Lun - Vie: 9:00 AM - 6:00 PM'
-      ],
-      color: 'bg-blue-50 text-blue-600'
+      label: 'Teléfono',
+      value: '7207 0407',
+      link: 'tel:+50372070407'
     },
     {
       icon: Mail,
-      title: 'Email',
-      details: [
-        'info@renelygems.com',
-        'ventas@renelygems.com',
-        'soporte@renelygems.com'
-      ],
-      color: 'bg-blue-50 text-blue-600'
+      label: 'Email',
+      value: 'renelygems@gmail.com',
+      link: 'mailto:renelygems@gmail.com'
     },
     {
-      icon: Clock,
-      title: 'Horarios',
-      details: [
-        'Lunes - Viernes: 9:00 AM - 6:00 PM',
-        'Sábado: 10:00 AM - 4:00 PM',
-        'Domingo: Cerrado'
-      ],
-      color: 'bg-blue-50 text-blue-600'
-    }
-  ];
-
-  const supportCategories = [
-    { 
-      value: 'general', 
-      label: 'Consulta General', 
-      icon: MessageCircle,
-      description: 'Preguntas generales sobre productos o servicios'
-    },
-    { 
-      value: 'orders', 
-      label: 'Pedidos y Envíos', 
-      icon: Package,
-      description: 'Consultas sobre pedidos, tracking o envíos'
-    },
-    { 
-      value: 'warranty', 
-      label: 'Garantía y Devoluciones', 
-      icon: Shield,
-      description: 'Información sobre garantías, cambios o devoluciones'
-    },
-    { 
-      value: 'custom', 
-      label: 'Diseño Personalizado', 
-      icon: MessageCircle,
-      description: 'Solicitud de diseños personalizados o exclusivos'
-    }
-  ];
-
-  // Preguntas frecuentes
-  const faqs = [
-    {
-      question: '¿Cuál es el tiempo de envío?',
-      answer: 'Los envíos nacionales tardan de 2 a 3 días hábiles. Para envíos internacionales, el tiempo estimado es de 5 a 7 días hábiles. Todos los envíos incluyen número de tracking.'
-    },
-    {
-      question: '¿Ofrecen garantía en las joyas?',
-      answer: 'Sí, todas nuestras joyas cuentan con garantía de 12 meses contra defectos de fabricación. Además, ofrecemos servicio de mantenimiento y limpieza gratuito durante el primer año.'
-    },
-    {
-      question: '¿Puedo personalizar una joya?',
-      answer: 'Por supuesto. Ofrecemos servicio de diseño personalizado. Puedes contactarnos para discutir tus ideas y te proporcionaremos un presupuesto personalizado sin compromiso.'
-    },
-    {
-      question: '¿Qué métodos de pago aceptan?',
-      answer: 'Aceptamos transferencias bancarias, tarjetas de crédito/débito y pago contra entrega. Para compras mayores a $500, ofrecemos planes de financiamiento.'
-    },
-    {
-      question: '¿Puedo cambiar o devolver un producto?',
-      answer: 'Sí, aceptamos cambios y devoluciones dentro de los 15 días posteriores a la compra, siempre que el producto esté en su estado original sin uso. Los gastos de envío corren por cuenta del cliente.'
+      icon: MapPin,
+      label: 'Ubicación',
+      value: 'Concepción de Ataco, El Salvador',
+      link: null
     }
   ];
 
@@ -132,32 +51,37 @@ export function ContactPage() {
     setIsLoading(true);
 
     try {
-      if (!formData.category) {
-        toast.error('Por favor selecciona una categoría de consulta');
-        setIsLoading(false);
-        return;
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Enviar email con EmailJS
+      await emailjs.send(
+        'YOUR_SERVICE_ID',        // Service ID
+        'YOUR_TEMPLATE_ID',       // Template ID
+        {
+          from_name: formData.name,
+          from_email: formData.email,
+          phone: formData.phone || 'No proporcionado',
+          message: formData.message,
+          to_email: 'renelygems@gmail.com'
+        },
+        'YOUR_PUBLIC_KEY'         // Public Key
+      );
 
       setFormData({
         name: '',
         email: '',
         phone: '',
-        subject: '',
-        category: '',
         message: ''
       });
 
       toast.success(
-        '¡Mensaje enviado exitosamente!',
+        'Mensaje enviado',
         {
-          description: 'Te responderemos en menos de 24 horas.',
+          description: 'Te contactaremos pronto.',
           icon: <CheckCircle2 className="h-5 w-5" />
         }
       );
     } catch (error) {
-      toast.error('Error al enviar el mensaje. Por favor, inténtalo de nuevo.');
+      console.error('Error al enviar email:', error);
+      toast.error('Error al enviar el mensaje. Por favor, intenta de nuevo.');
     } finally {
       setIsLoading(false);
     }
@@ -168,150 +92,145 @@ export function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50/30 to-white">
-      <div className="container mx-auto px-4 py-12">
-        {/* Encabezado */}
-        <div className="text-center mb-12 space-y-4">
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-500 via-blue-600 to-purple-600 bg-clip-text text-transparent">
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto px-4 py-16 md:py-24">
+        {/* Header */}
+        <div className="max-w-3xl mx-auto text-center mb-16 space-y-4">
+          <h1 className="text-4xl md:text-6xl font-light tracking-tight text-gray-900">
             Contáctanos
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Estamos aquí para ayudarte. Ponte en contacto con nosotros para cualquier 
-            consulta sobre nuestras joyas, pedidos o servicios personalizados.
+          <p className="text-lg text-gray-500 font-light">
+            Estamos aquí para ayudarte
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8 mb-12">
-          {/* Formulario */}
-          <div className="lg:col-span-2">
-            <Card className="shadow-lg border-0">
-              <CardHeader className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Send className="h-6 w-6 text-blue-600" />
-                  <CardTitle className="text-2xl">Envíanos un Mensaje</CardTitle>
+        <div className="max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 md:gap-16">
+            {/* Información de contacto */}
+            <div className="space-y-10">
+              <div>
+                <h2 className="text-2xl font-light text-gray-900 mb-8">
+                  Información
+                </h2>
+                <div className="space-y-6">
+                  {contactInfo.map((info, index) => (
+                    <div key={index} className="group">
+                      {info.link ? (
+                        <a
+                          href={info.link}
+                          className="flex items-start gap-4 transition-all hover:translate-x-1"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-gray-900 transition-colors">
+                            <info.icon className="w-5 h-5 text-gray-600 group-hover:text-white transition-colors" />
+                          </div>
+                          <div className="pt-1">
+                            <p className="text-xs uppercase tracking-wider text-gray-400 mb-1 font-medium">
+                              {info.label}
+                            </p>
+                            <p className="text-gray-900 font-light group-hover:text-gray-600 transition-colors">
+                              {info.value}
+                            </p>
+                          </div>
+                        </a>
+                      ) : (
+                        <div className="flex items-start gap-4">
+                          <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                            <info.icon className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="pt-1">
+                            <p className="text-xs uppercase tracking-wider text-gray-400 mb-1 font-medium">
+                              {info.label}
+                            </p>
+                            <p className="text-gray-900 font-light">
+                              {info.value}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <CardDescription>
-                  Completa el formulario y te responderemos en menos de 24 horas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              </div>
+
+              {/* Horarios */}
+              <div className="pt-6 border-t border-gray-100">
+                <p className="text-xs uppercase tracking-wider text-gray-400 mb-3 font-medium">
+                  Horarios
+                </p>
+                <div className="space-y-2 text-sm text-gray-600 font-light">
+                  <p>Lunes - Viernes: 9:00 AM - 6:00 PM</p>
+                  <p>Sábado: 10:00 AM - 4:00 PM</p>
+                  <p>Domingo: Cerrado</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Formulario */}
+            <div>
+              <Card className="border-0 shadow-none p-0">
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Nombre y Email  */}
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">
-                        Nombre completo <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="name"
-                        type="text"
-                        placeholder="Tu nombre"
-                        value={formData.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                        required
-                        className="transition-all focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">
-                        Email <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="tu@email.com"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                        required
-                        className="transition-all focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-xs uppercase tracking-wider text-gray-400 font-medium">
+                      Nombre
+                    </Label>
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="Tu nombre"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      required
+                      className="border-0 border-b border-gray-200 rounded-none px-0 focus-visible:ring-0 focus-visible:border-gray-900 transition-colors"
+                    />
                   </div>
 
-                  {/* Teléfono */}
                   <div className="space-y-2">
-                    <Label htmlFor="phone">
+                    <Label htmlFor="email" className="text-xs uppercase tracking-wider text-gray-400 font-medium">
+                      Email
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="tu@email.com"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      required
+                      className="border-0 border-b border-gray-200 rounded-none px-0 focus-visible:ring-0 focus-visible:border-gray-900 transition-colors"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-xs uppercase tracking-wider text-gray-400 font-medium">
                       Teléfono (opcional)
                     </Label>
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="+503 XXXX-XXXX"
+                      placeholder="7207 0407"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className="transition-all focus:ring-2 focus:ring-blue-500"
+                      className="border-0 border-b border-gray-200 rounded-none px-0 focus-visible:ring-0 focus-visible:border-gray-900 transition-colors"
                     />
                   </div>
 
-                  {/* Categoría de consulta */}
                   <div className="space-y-2">
-                    <Label htmlFor="category">
-                      Categoría de consulta <span className="text-red-500">*</span>
-                    </Label>
-                    <Select 
-                      value={formData.category} 
-                      onValueChange={(value) => handleInputChange('category', value)}
-                    >
-                      <SelectTrigger className="transition-all focus:ring-2 focus:ring-blue-500">
-                        <SelectValue placeholder="Selecciona el tipo de consulta" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {supportCategories.map((category) => (
-                          <SelectItem key={category.value} value={category.value}>
-                            <div className="flex items-start gap-3 py-1">
-                              <category.icon className="w-5 h-5 mt-0.5 flex-shrink-0" />
-                              <div className="flex flex-col">
-                                <span className="font-medium">{category.label}</span>
-                                <span className="text-xs text-gray-500">
-                                  {category.description}
-                                </span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Asunto */}
-                  <div className="space-y-2">
-                    <Label htmlFor="subject">
-                      Asunto <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="subject"
-                      type="text"
-                      placeholder="Resumen de tu consulta"
-                      value={formData.subject}
-                      onChange={(e) => handleInputChange('subject', e.target.value)}
-                      required
-                      className="transition-all focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Mensaje */}
-                  <div className="space-y-2">
-                    <Label htmlFor="message">
-                      Mensaje <span className="text-red-500">*</span>
+                    <Label htmlFor="message" className="text-xs uppercase tracking-wider text-gray-400 font-medium">
+                      Mensaje
                     </Label>
                     <Textarea
                       id="message"
-                      placeholder="Cuéntanos más detalles sobre tu consulta..."
-                      rows={6}
+                      placeholder="Cuéntanos en qué podemos ayudarte..."
+                      rows={5}
                       value={formData.message}
                       onChange={(e) => handleInputChange('message', e.target.value)}
                       required
-                      className="transition-all focus:ring-2 focus:ring-blue-500 resize-none"
+                      className="border-0 border-b border-gray-200 rounded-none px-0 resize-none focus-visible:ring-0 focus-visible:border-gray-900 transition-colors"
                     />
-                    <p className="text-xs text-gray-500">
-                      {formData.message.length} / 500 caracteres
-                    </p>
                   </div>
 
-                  {/* Botón de envío */}
-                  <Button 
-                    type="submit" 
-                    className="w-full h-12 text-base"
+                  <Button
+                    type="submit"
+                    className="w-full h-12 bg-gray-900 hover:bg-gray-800 text-white rounded-none font-light tracking-wide transition-colors"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -321,109 +240,22 @@ export function ContactPage() {
                       </>
                     ) : (
                       <>
-                        <Send className="mr-2 h-5 w-5" />
-                        Enviar Mensaje
+                        <Send className="mr-2 h-4 w-4" />
+                        Enviar mensaje
                       </>
                     )}
                   </Button>
                 </form>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Información de contacto */}
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Phone className="h-6 w-6 text-blue-600" />
-                Información de Contacto
-              </h2>
-              <div className="space-y-4">
-                {contactInfo.map((info, index) => (
-                  <Card key={index} className="border-0 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-5">
-                      <div className="flex items-start gap-4">
-                        <div className={`w-12 h-12 ${info.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                          <info.icon className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900 mb-2">{info.title}</h4>
-                          <div className="space-y-1">
-                            {info.details.map((detail, idx) => (
-                              <p key={idx} className="text-sm text-gray-600">
-                                {detail}
-                              </p>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              </Card>
             </div>
           </div>
         </div>
 
-        {/* Preguntas Frecuentes */}
-        <Card className="shadow-lg border-0">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <HelpCircle className="h-6 w-6 text-blue-600" />
-              <CardTitle className="text-2xl">Preguntas Frecuentes</CardTitle>
-            </div>
-            <CardDescription>
-              Encuentra respuestas rápidas a las preguntas más comunes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Accordion type="single" collapsible className="w-full">
-              {faqs.map((faq, index) => (
-                <AccordionItem key={index} value={`item-${index}`}>
-                  <AccordionTrigger className="text-left hover:text-blue-600">
-                    {faq.question}
-                  </AccordionTrigger>
-                  <AccordionContent className="text-gray-600">
-                    {faq.answer}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </CardContent>
-        </Card>
-
-        {/* CTA */}
-        <div className="mt-12 text-center">
-          <Card className="bg-gradient-to-r from-blue-500 via-blue-600 to-purple-600 border-0 text-white shadow-xl">
-            <CardContent className="p-8">
-              <h3 className="text-2xl font-bold mb-3">
-                ¿Prefieres hablar directamente con nosotros?
-              </h3>
-              <p className="text-blue-50 mb-6 max-w-2xl mx-auto">
-                Nuestro equipo está disponible para atenderte por WhatsApp o llamada telefónica
-              </p>
-              <div className="flex flex-wrap gap-4 justify-center">
-                <Button 
-                  variant="secondary" 
-                  size="lg"
-                  className="bg-white text-blue-600 hover:bg-blue-50 font-semibold"
-                  onClick={() => window.open('https://wa.me/50370000000', '_blank')}
-                >
-                  <MessageCircle className="mr-2 h-5 w-5" />
-                  WhatsApp
-                </Button>
-                <Button 
-                  variant="secondary" 
-                  size="lg"
-                  className="bg-white text-blue-600 hover:bg-blue-50 font-semibold"
-                  onClick={() => window.location.href = 'tel:+50370000000'}
-                >
-                  <Phone className="mr-2 h-5 w-5" />
-                  Llamar Ahora
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Footer */}
+        <div className="max-w-5xl mx-auto mt-20 pt-12 border-t border-gray-100">
+          <p className="text-center text-sm text-gray-400 font-light">
+            Te responderemos en menos de 24 horas
+          </p>
         </div>
       </div>
     </div>

@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { type Cart } from './data/mockData';
 import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
-import { Separator } from './ui/separator';
 import { Textarea } from './ui/textarea';
-import { ArrowLeft, CreditCard, Banknote, Upload, X } from 'lucide-react';
+import { ArrowLeft, CreditCard, Banknote, Upload, X, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
-import { OrdersService, CartService } from '../lib/supabaseService';
+import { OrdersService, CartService, StorageService } from '../lib/supabaseService';
 
 interface CheckoutPageProps {
   cart: Cart;
@@ -100,6 +98,7 @@ export function CheckoutPage({ cart, onNavigate, onUpdateCart, userId, userEmail
         deliveryType,
         shippingInfo,
         notes: notes.trim() || null,
+        paymentProofUrl: null,
       };
 
       const { orderId, error } = await OrdersService.createOrder(orderData);
@@ -108,6 +107,26 @@ export function CheckoutPage({ cart, onNavigate, onUpdateCart, userId, userEmail
         toast.error(error || 'Error al crear el pedido');
         setIsSubmitting(false);
         return;
+      }
+
+      // Si hay comprobante de pago, subirlo
+      if (transferProof && paymentMethod === 'transfer') {
+        const { url, error: uploadError } = await StorageService.uploadPaymentProof(
+          userId,
+          orderId,
+          transferProof
+        );
+
+        if (uploadError) {
+          console.error('Error al subir comprobante:', uploadError);
+          toast.error('Pedido creado, pero hubo un error al subir el comprobante. Envíalo por WhatsApp.');
+        } else if (url) {
+          // Actualizar la orden con la URL del comprobante
+          const { error: updateError } = await OrdersService.updatePaymentProof(orderId, url);
+          if (updateError) {
+            console.error('Error al actualizar URL del comprobante:', updateError);
+          }
+        }
       }
 
       await CartService.clearCart(userId);
@@ -174,10 +193,19 @@ export function CheckoutPage({ cart, onNavigate, onUpdateCart, userId, userEmail
 
   if (cart.items.length === 0) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center py-16">
-          <h2 className="mb-4">El carrito está vacío</h2>
-          <Button onClick={() => onNavigate('catalog')}>
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <ShoppingBag className="mx-auto h-16 w-16 text-gray-300 mb-6" />
+          <h2 className="text-2xl font-light text-gray-900 mb-4">
+            El carrito está vacío
+          </h2>
+          <p className="text-gray-500 mb-8 font-light">
+            Agrega productos para proceder con tu compra
+          </p>
+          <Button
+            onClick={() => onNavigate('catalog')}
+            className="bg-gray-900 hover:bg-gray-800 text-white rounded-none h-12 px-8 font-light"
+          >
             Ir al catálogo
           </Button>
         </div>
@@ -186,221 +214,265 @@ export function CheckoutPage({ cart, onNavigate, onUpdateCart, userId, userEmail
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" onClick={() => onNavigate('cart')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver al carrito
-        </Button>
-        <h1>Finalizar Compra</h1>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-8 md:py-16">
+        {/* Header */}
+        <div className="mb-12">
+          <button
+            onClick={() => onNavigate('cart')}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-6 font-light"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver al carrito
+          </button>
+          <h1 className="text-3xl md:text-4xl font-light text-gray-900">
+            Finalizar compra
+          </h1>
+        </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Form */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Shipping info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Información de Contacto</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Nombre completo *</Label>
-                  <Input
-                    id="name"
-                    value={shippingInfo.name}
-                    onChange={(e) => setShippingInfo(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Juan Pérez"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Teléfono *</Label>
-                  <Input
-                    id="phone"
-                    value={shippingInfo.phone}
-                    onChange={(e) => setShippingInfo(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="7207-0407"
-                  />
-                </div>
-              </div>
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Form */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Información de Contacto */}
+            <div className="bg-white rounded-lg p-8">
+              <h2 className="text-xl font-light text-gray-900 mb-6">
+                Información de contacto
+              </h2>
 
-              <div>
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={shippingInfo.email}
-                  onChange={(e) => setShippingInfo(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="correo@ejemplo.com"
-                />
-              </div>
-
-              {/* Tipo de delivery  */}
-              <div className="space-y-2">
-                <Label>Tipo de entrega *</Label>
-                <RadioGroup value={deliveryType} onValueChange={(value: 'home' | 'pickup') => setDeliveryType(value)}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="home" id="home" />
-                    <Label htmlFor="home" className="font-normal cursor-pointer">Entrega a domicilio</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="pickup" id="pickup" />
-                    <Label htmlFor="pickup" className="font-normal cursor-pointer">Recoger en tienda</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {deliveryType === 'home' && (
-                <>
+              <div className="space-y-5">
+                <div className="grid md:grid-cols-2 gap-5">
                   <div>
-                    <Label htmlFor="address">Dirección *</Label>
+                    <Label htmlFor="name" className="text-sm font-light text-gray-700 mb-2 block">
+                      Nombre completo *
+                    </Label>
                     <Input
-                      id="address"
-                      value={shippingInfo.address}
-                      onChange={(e) => setShippingInfo(prev => ({ ...prev, address: e.target.value }))}
-                      placeholder="Calle Principal, Casa #123"
+                      id="name"
+                      value={shippingInfo.name}
+                      onChange={(e) => setShippingInfo(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Juan Pérez"
+                      className="rounded-none border-gray-200 focus:border-gray-900 font-light h-12"
                     />
                   </div>
-
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="md:col-span-1">
-                      <Label htmlFor="city">Ciudad *</Label>
-                      <Input
-                        id="city"
-                        value={shippingInfo.city}
-                        onChange={(e) => setShippingInfo(prev => ({ ...prev, city: e.target.value }))}
-                        placeholder="San Salvador"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="postalCode">Código Postal</Label>
-                      <Input
-                        id="postalCode"
-                        value={shippingInfo.postalCode}
-                        onChange={(e) => setShippingInfo(prev => ({ ...prev, postalCode: e.target.value }))}
-                        placeholder="1101"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="country">País</Label>
-                      <Input
-                        id="country"
-                        value={shippingInfo.country}
-                        disabled
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="phone" className="text-sm font-light text-gray-700 mb-2 block">
+                      Teléfono *
+                    </Label>
+                    <Input
+                      id="phone"
+                      value={shippingInfo.phone}
+                      onChange={(e) => setShippingInfo(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="7207-0407"
+                      className="rounded-none border-gray-200 focus:border-gray-900 font-light h-12"
+                    />
                   </div>
-                </>
-              )}
-
-              <div>
-                <Label htmlFor="notes">Notas adicionales (opcional)</Label>
-                <Textarea
-                  id="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Instrucciones especiales, referencias, etc."
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Metodo de pago */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Método de Pago</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <RadioGroup value={paymentMethod} onValueChange={(value: 'transfer' | 'cash_on_delivery') => setPaymentMethod(value)}>
-                <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-muted">
-                  <RadioGroupItem value="cash_on_delivery" id="cash" />
-                  <Label htmlFor="cash" className="flex items-center gap-2 font-normal cursor-pointer flex-1">
-                    <Banknote className="h-5 w-5" />
-                    <div>
-                      <div className="font-medium">Pago contra entrega</div>
-                      <div className="text-sm text-muted-foreground">Paga en efectivo al recibir tu pedido</div>
-                    </div>
-                  </Label>
                 </div>
 
-                <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-muted">
-                  <RadioGroupItem value="transfer" id="transfer" />
-                  <Label htmlFor="transfer" className="flex items-center gap-2 font-normal cursor-pointer flex-1">
-                    <CreditCard className="h-5 w-5" />
-                    <div>
-                      <div className="font-medium">Transferencia Bancaria</div>
-                      <div className="text-sm text-muted-foreground">Transfiere a nuestra cuenta bancaria</div>
-                    </div>
+                <div>
+                  <Label htmlFor="email" className="text-sm font-light text-gray-700 mb-2 block">
+                    Email *
                   </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={shippingInfo.email}
+                    onChange={(e) => setShippingInfo(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="correo@ejemplo.com"
+                    className="rounded-none border-gray-200 focus:border-gray-900 font-light h-12"
+                  />
+                </div>
+
+                {/* Tipo de entrega */}
+                <div className="space-y-3 pt-2">
+                  <Label className="text-sm font-light text-gray-700">
+                    Tipo de entrega *
+                  </Label>
+                  <RadioGroup value={deliveryType} onValueChange={(value: 'home' | 'pickup') => setDeliveryType(value)}>
+                    <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">
+                      <RadioGroupItem value="home" id="home" />
+                      <Label htmlFor="home" className="font-light cursor-pointer flex-1">
+                        Entrega a domicilio
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">
+                      <RadioGroupItem value="pickup" id="pickup" />
+                      <Label htmlFor="pickup" className="font-light cursor-pointer flex-1">
+                        Recoger en tienda
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {deliveryType === 'home' && (
+                  <>
+                    <div>
+                      <Label htmlFor="address" className="text-sm font-light text-gray-700 mb-2 block">
+                        Dirección *
+                      </Label>
+                      <Input
+                        id="address"
+                        value={shippingInfo.address}
+                        onChange={(e) => setShippingInfo(prev => ({ ...prev, address: e.target.value }))}
+                        placeholder="Calle Principal, Casa #123"
+                        className="rounded-none border-gray-200 focus:border-gray-900 font-light h-12"
+                      />
+                    </div>
+
+                    <div className="grid md:grid-cols-3 gap-5">
+                      <div className="md:col-span-1">
+                        <Label htmlFor="city" className="text-sm font-light text-gray-700 mb-2 block">
+                          Ciudad *
+                        </Label>
+                        <Input
+                          id="city"
+                          value={shippingInfo.city}
+                          onChange={(e) => setShippingInfo(prev => ({ ...prev, city: e.target.value }))}
+                          placeholder="San Salvador"
+                          className="rounded-none border-gray-200 focus:border-gray-900 font-light h-12"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="postalCode" className="text-sm font-light text-gray-700 mb-2 block">
+                          Código Postal
+                        </Label>
+                        <Input
+                          id="postalCode"
+                          value={shippingInfo.postalCode}
+                          onChange={(e) => setShippingInfo(prev => ({ ...prev, postalCode: e.target.value }))}
+                          placeholder="1101"
+                          className="rounded-none border-gray-200 focus:border-gray-900 font-light h-12"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="country" className="text-sm font-light text-gray-700 mb-2 block">
+                          País
+                        </Label>
+                        <Input
+                          id="country"
+                          value={shippingInfo.country}
+                          disabled
+                          className="rounded-none border-gray-200 font-light h-12 bg-gray-50"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <Label htmlFor="notes" className="text-sm font-light text-gray-700 mb-2 block">
+                    Notas adicionales (opcional)
+                  </Label>
+                  <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Instrucciones especiales, referencias, etc."
+                    rows={3}
+                    className="rounded-none border-gray-200 focus:border-gray-900 font-light"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Método de Pago */}
+            <div className="bg-white rounded-lg p-8">
+              <h2 className="text-xl font-light text-gray-900 mb-6">
+                Método de pago
+              </h2>
+
+              <RadioGroup value={paymentMethod} onValueChange={(value: 'transfer' | 'cash_on_delivery') => setPaymentMethod(value)}>
+                <div className="space-y-4">
+                  <div className="flex items-start space-x-4 border border-gray-200 rounded-lg p-5 cursor-pointer hover:border-gray-400 transition-colors">
+                    <RadioGroupItem value="cash_on_delivery" id="cash" className="mt-1" />
+                    <Label htmlFor="cash" className="cursor-pointer flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <Banknote className="h-5 w-5 text-gray-600" />
+                        <span className="font-normal text-gray-900">Pago contra entrega</span>
+                      </div>
+                      <p className="text-sm text-gray-500 font-light">
+                        Paga en efectivo al recibir tu pedido
+                      </p>
+                    </Label>
+                  </div>
+
+                  <div className="flex items-start space-x-4 border border-gray-200 rounded-lg p-5 cursor-pointer hover:border-gray-400 transition-colors">
+                    <RadioGroupItem value="transfer" id="transfer" className="mt-1" />
+                    <Label htmlFor="transfer" className="cursor-pointer flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <CreditCard className="h-5 w-5 text-gray-600" />
+                        <span className="font-normal text-gray-900">Transferencia Bancaria</span>
+                      </div>
+                      <p className="text-sm text-gray-500 font-light">
+                        Transfiere a nuestra cuenta bancaria
+                      </p>
+                    </Label>
+                  </div>
                 </div>
               </RadioGroup>
 
               {paymentMethod === 'transfer' && (
-                <div className="bg-muted p-4 rounded-lg space-y-3">
-                  <h4 className="font-medium">Datos Bancarios:</h4>
-                  <div className="space-y-1 text-sm">
-                    <p><strong>Banco:</strong> BancoAgricola</p>
-                    <p><strong>Tipo de cuenta:</strong> Cuenta de ahorros</p>
-                    <p><strong>Número de cuenta:</strong> 32723827493</p>
+                <div className="mt-6 p-6 bg-gray-50 rounded-lg space-y-4">
+                  <h4 className="font-normal text-gray-900">Datos Bancarios:</h4>
+                  <div className="space-y-2 text-sm font-light text-gray-700">
+                    <p><span className="font-normal">Banco:</span> BancoAgricola</p>
+                    <p><span className="font-normal">Tipo de cuenta:</span> Cuenta de ahorros</p>
+                    <p><span className="font-normal">Número de cuenta:</span> 32723827493</p>
                   </div>
 
-                  <Separator />
+                  <div className="h-px bg-gray-200 my-4" />
 
-                  <div className="space-y-2">
-                    <Label htmlFor="proof">Comprobante de transferencia (opcional)</Label>
-                    <p className="text-xs text-muted-foreground">
+                  <div className="space-y-3">
+                    <Label htmlFor="proof" className="text-sm font-light text-gray-700">
+                      Comprobante de transferencia (opcional)
+                    </Label>
+                    <p className="text-xs text-gray-500 font-light">
                       Puedes subir el comprobante ahora o enviarlo por WhatsApp después
                     </p>
 
                     {!transferProof ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          id="proof"
-                          type="file"
-                          accept="image/*,.pdf"
-                          onChange={handleFileChange}
-                          className="cursor-pointer"
-                        />
-                      </div>
+                      <Input
+                        id="proof"
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={handleFileChange}
+                        className="cursor-pointer rounded-none border-gray-200 font-light"
+                      />
                     ) : (
-                      <div className="flex items-center gap-2 p-3 bg-background rounded border">
-                        <Upload className="h-4 w-4 text-green-600" />
-                        <span className="text-sm flex-1">{transferProof.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                      <div className="flex items-center gap-3 p-4 bg-white rounded-lg border border-gray-200">
+                        <Upload className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <span className="text-sm font-light flex-1 truncate">{transferProof.name}</span>
+                        <button
                           onClick={removeFile}
+                          className="text-gray-400 hover:text-gray-900 transition-colors"
                         >
-                          <X className="h-4 w-4" />
-                        </Button>
+                          <X className="h-5 w-5" />
+                        </button>
                       </div>
                     )}
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
 
-        {/* Resumen de orden */}
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumen del Pedido</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
+          {/* Resumen del pedido */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg p-8 sticky top-8">
+              <h2 className="text-xl font-light text-gray-900 mb-8">
+                Resumen del pedido
+              </h2>
+
+              <div className="space-y-4 mb-8">
+                <div className="flex justify-between text-gray-600 font-light">
                   <span>Productos ({cart.items.length})</span>
                   <span>${cart.subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+
+                <div className="flex justify-between text-gray-600 font-light">
                   <span>Impuestos</span>
                   <span>${cart.taxes.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+
+                <div className="flex justify-between text-gray-600 font-light">
                   <span>Envío</span>
                   <span>
                     {cart.shipping === 0 ? (
@@ -410,29 +482,28 @@ export function CheckoutPage({ cart, onNavigate, onUpdateCart, userId, userEmail
                     )}
                   </span>
                 </div>
-              </div>
 
-              <Separator />
+                <div className="h-px bg-gray-200 my-4" />
 
-              <div className="flex justify-between font-medium text-lg">
-                <span>Total</span>
-                <span>${cart.total.toFixed(2)}</span>
+                <div className="flex justify-between text-lg text-gray-900">
+                  <span className="font-normal">Total</span>
+                  <span className="font-normal">${cart.total.toFixed(2)}</span>
+                </div>
               </div>
 
               <Button
                 onClick={handleSubmitOrder}
-                className="w-full"
-                size="lg"
+                className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded-none h-14 font-light text-base mb-4"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? 'Procesando...' : 'Confirmar Pedido'}
+                {isSubmitting ? 'Procesando...' : 'Confirmar pedido'}
               </Button>
 
-              <p className="text-xs text-muted-foreground text-center">
+              <p className="text-xs text-gray-500 font-light text-center">
                 Al confirmar, serás redirigido a WhatsApp para coordinar la entrega
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
     </div>

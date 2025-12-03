@@ -44,12 +44,16 @@ export interface Cart {
 export interface Order {
   id: string;
   userId: string;
-  userName?: string; 
+  userName?: string;
   items: CartItem[];
   subtotal: number;
   taxes: number;
   shipping: number;
   total: number;
+  paymentMethod?: 'transfer' | 'cash_on_delivery';
+  deliveryType?: 'home' | 'pickup';
+  notes?: string | null;
+  paymentProofUrl?: string | null;
   shippingAddress?: {
     name: string;
     email: string;
@@ -483,7 +487,7 @@ export const mockUsers: User[] = [
 // Mock settings
 export const mockSettings: Settings = {
   currency: 'USD',
-  taxRate: 0.08,
-  shippingCost: 12.99,
-  freeShippingThreshold: 150.00
+  taxRate: 0.13,
+  shippingCost: 3.50,
+  freeShippingThreshold: 25.00
 };
